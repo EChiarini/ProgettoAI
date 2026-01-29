@@ -375,7 +375,9 @@ class TrackEnv(gym.Env):
               color = None
               if val == 2:
                   color = (255, 0, 0)      # Rosso per il traguardo
-              elif val >= 0: # Assumiamo che valori positivi siano strada
+              elif val == 0:                
+                  color= (255,255,255)      #Bianco per i cordoli
+              elif val == 1:
                   color = (128, 128, 128)  # Grigio per la strada
               else:
                   color = (34, 139, 34)    # Verde scuro per fuori strada (-1, -2)
@@ -634,7 +636,7 @@ for i_episode in loop:
         next_state, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
 
-        if i_episode ==999:
+        if i_episode ==1:
           env.render()
 
         # 3. Addestramento (Memorizza e impara)
