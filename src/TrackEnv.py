@@ -120,66 +120,79 @@ class TrackEnv(gym.Env):
 
   def __init__(self, render_mode=None): 
       
-      # Metadati per il rendering (es. 10 FPS per vederlo con calma)
-      self.metadata = {"render_fps": 10, "render_modes": ["human", "rgb_array"]}
-      
-      self.matrix = buildTrack()
-      self.distance_matrix = creaMatriceDistanze("./imola_track.csv", "destra")
-      
-      # --- VARIABILI PER IL RENDERING ---
-      self.render_mode = render_mode
-      self.window_size = 800  # Dimensione della finestra in pixel
-      self.window = None      # Finestra Pygame
-      self.clock = None       # Clock per gestire gli FPS
-      # ----------------------------------
+        # Metadati per il rendering (es. 10 FPS per vederlo con calma)
+        self.metadata = {"render_fps": 10, "render_modes": ["human", "rgb_array"]}
+        
+        self.matrix = buildTrack()
+        self.distance_matrix = creaMatriceDistanze("./imola_track.csv", "destra")
+        
+        # --- VARIABILI PER IL RENDERING ---
+        self.render_mode = render_mode
+        self.window_size = 800  # Dimensione della finestra in pixel
+        self.window = None      # Finestra Pygame
+        self.clock = None       # Clock per gestire gli FPS
+        # ----------------------------------
 
-      self.view_size = 7
-      self.road_width = 5
-      self.trajectory = list()
+        self.view_size = 7
+        self.road_width = 5
+        self.trajectory = list()
 
-      coordinates = np.argwhere(self.matrix == 2)
-      self._target_location = np.array(coordinates, dtype=np.int32)
-      self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
-      self._agent_velocity = 1
+        coordinates = np.argwhere(self.matrix == 2)
+        self._target_location = np.array(coordinates, dtype=np.int32)
+        self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
+        #self._agent_velocity = 1
 
-      self.action_space = gym.spaces.Discrete(4)
-      
-      self._action_to_direction = {
-          0: np.array([0, 1]),
-          1: np.array([-1, 0]),
-          2: np.array([0, -1]),
-          3: np.array([1, 0]),
-      }
+        self.action_space = gym.spaces.Discrete(4)
+        
+        self._action_to_direction = {
+            0: np.array([0, 1]),
+            1: np.array([-1, 0]),
+            2: np.array([0, -1]),
+            3: np.array([1, 0]),
+        }
 
-      self.observation_space = gym.spaces.Dict({  #i dict servono per spazi eterogenei
-              # 1. La sottomatrice locale (come prima)
-              "agent_view": gym.spaces.Box( #i box servono per spazi omogenei
-                  low=-2,
-                  high=2,
-                  shape=(self.view_size, self.view_size),
-                  dtype=np.int8
-              )
-              #,
+        self.observation_space = gym.spaces.Dict({  #i dict servono per spazi eterogenei
+                # 1. La sottomatrice locale (come prima)
+                "agent_view": gym.spaces.Box( #i box servono per spazi omogenei
+                    low=-2,
+                    high=2,
+                    shape=(self.view_size, self.view_size),
+                    dtype=np.int8
+                )
+                #,
 
-              # 2. La direzione (angolo in radianti o gradi)
-              # Definiamo un array di shape=(1,) contenente un float
-              # Esempio: da 0 a 2*PI (circa 6.28)
-              #"direction": gym.spaces.Box(
-              #    low=0,
-              #    high=2 * math.pi,
-              #    shape=(1,),
-              #    dtype=np.float32
-              #),
+                # 2. La direzione (angolo in radianti o gradi)
+                # Definiamo un array di shape=(1,) contenente un float
+                # Esempio: da 0 a 2*PI (circa 6.28)
+                #"direction": gym.spaces.Box(
+                #    low=0,
+                #    high=2 * math.pi,
+                #    shape=(1,),
+                #    dtype=np.float32
+                #),
 
-              #aggiungere velocità
-              #"velocity": gym.spaces.Box(
-              #    low=0,
-              #   high=self.matrix.shape[0],
-              #   shape=(1,),
-              #   dtype=np.float32
-              #)
-          })
+                #aggiungere velocità
+                #"velocity": gym.spaces.Box(
+                #    low=0,
+                #   high=self.matrix.shape[0],
+                #   shape=(1,),
+                #   dtype=np.float32
+                #)
+            })
 
+        self._checkpoints = dict()
+        self.numero_checkpoints=7
+
+        valore_checkpoint=self.distance_matrix.max()//self.numero_checkpoints
+        for i in range(self.numero_checkpoints-1):
+           
+            #print(f"valore checkpoint n.{i} = {valore_checkpoint*(i+1)}")
+            coordinate_checkpoint=argwhere(self.distance_matrix, valore_checkpoint*(i+1))
+            self._checkpoints[f"checkpoint_{i+1}"] = coordinate_checkpoint
+
+        #print(self._checkpoints)
+
+        self._progresso = 0
 
 
 
@@ -244,7 +257,9 @@ class TrackEnv(gym.Env):
 
    # self._agent_direction = math.pi
 
-    self._agent_velocity = 1
+    #self._agent_velocity = 1
+
+    self._progresso = 0
 
     coordinates = np.argwhere(self.matrix == 2)
 
@@ -273,15 +288,14 @@ class TrackEnv(gym.Env):
             self._agent_location + direction, 0, size - 1
         )
 
-    #print(f"AAAAAAAAAAAAAAAAAAAAAAAA:{self._agent_location}")
 
     self.trajectory.append(self._agent_location)
-    #print(f"Traiettoria:{self.trajectory}")
         # Check if agent reached the target
     terminated=False
-    for x in self._target_location:
-      if np.array_equal(x, self._agent_location):
-           terminated = True
+    #for x in self._target_location:
+     #   if np.array_equal(x, self._agent_location):
+    #       print("--------------------")
+     #       terminated = True
 
         # We don't use truncation in this simple environment
         # (could add a step limit here if desired)
@@ -296,12 +310,24 @@ class TrackEnv(gym.Env):
     '''stavo pensando se invece non é meglio terminare la simulazione se va fuori. Altrimenti se la continuiamo lui raccoglie dati su come guidare
     fuori dal tracciato e nella migliore delle ipotesi al massimo imparerebbe come rientrare in pista. Solo che il nostro obiettivo é che non esca proprio
     quindi aggiungerei un
-    if matrix[posizione_agente] == -1
-      reward = -10
-      truncated = True
     '''
-    reward = self.distance_matrix[self._agent_location[0],self._agent_location[1]]
-    #print(f"reward : {reward}")
+
+    if self.matrix[self._agent_location[0],self._agent_location[1]] == -1:
+        reward = -1000
+        truncated = True
+    
+    else:
+        #reward = self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+
+        for x in self._checkpoints[f"checkpoint_{self._progresso+1}"]:
+            
+            if np.array_equal(self._agent_location,x):
+                reward = 1000
+                self._progresso=self._progresso+1
+            else:
+                reward = -1
+
+
     '''
     #1. reward = -1 costante + bonus checkpoint
 
@@ -513,10 +539,10 @@ class Agent:
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
         self.memory = ReplayBuffer(capacity=10000, batch_size=64, seed=seed)
         
-        self.gamma = 0.99
+        self.gamma = 0.99   #discount factor
         self.epsilon = 1.0
         self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 1/(number_episodes*0.5)
         self.t_step = 0
 
     # --- NUOVO METODO HELPER ---
@@ -539,10 +565,12 @@ class Agent:
             # Risultato shape: (Batch_Size, 49)
             return np.array(batch_views).reshape(len(batch_views), -1)
 
-    def _update_epsilon(self):
+    def update_epsilon(self):
         
-      self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+      self.epsilon = max(self.epsilon_min, self.epsilon - self.epsilon_decay)
       return self.epsilon
+
+
 
     def select_action(self, state):
         # state è un DICT: {'agent_view': array(7,7)}
@@ -602,15 +630,53 @@ class Agent:
         loss.backward()
         self.optimizer.step()
         
-        self._update_epsilon()
         # Aggiungi qui update_target logic se necessario
 
 
-pilota = Agent(state_size, number_actions)
+def save_training_plot(scores, filename="training_plot.png", window_size=50):
+    """
+    Crea e salva un grafico dell'andamento dei reward.
+    
+    Args:
+        scores (list): La lista completa dei punteggi per ogni episodio.
+        filename (str): Il percorso dove salvare l'immagine.
+        window_size (int): L'ampiezza della finestra per la media mobile.
+    """
+    # Imposta la dimensione della figura
+    plt.figure(figsize=(10, 6))
+    
+    
+    # 2. Calcolo e Plot della Media Mobile (Trend)
+    # Se abbiamo abbastanza dati per calcolare la media
+    if len(scores) >= window_size:
+        # Calcola la media mobile usando la convoluzione (molto veloce)
+        moving_avg = np.convolve(scores, np.ones(window_size)/window_size, mode='valid')
+        
+        # L'asse X per la media mobile deve essere spostato per allinearsi
+        # (parte dall'episodio 'window_size')
+        x_axis = np.arange(window_size - 1, len(scores))
+        
+        plt.plot(x_axis, moving_avg, color='blue', linewidth=2, label=f'Media Mobile ({window_size} ep)')
 
-number_episodes = 1000
+    # Etichette e Titolo
+    plt.title('Andamento Addestramento DQN')
+    plt.xlabel('Episodio')
+    plt.ylabel('Reward Totale (Score)')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    
+    # Salva il file
+    plt.savefig(filename)
+    print(f"Grafico salvato in: {filename}")
+    
+    # Chiudi la figura per liberare memoria
+    plt.close()
+
+number_episodes = 10000
 step_limit = 1000
 step_count=0
+
+pilota = Agent(state_size, number_actions)
 
 # Liste per tenere traccia dei punteggi
 scores = []
@@ -636,8 +702,8 @@ for i_episode in loop:
         next_state, reward, terminated, truncated, _ = env.step(action)
         done = terminated or truncated
 
-        if i_episode ==1:
-          env.render()
+        
+        
 
         # 3. Addestramento (Memorizza e impara)
         pilota.step(state, action, reward, next_state, done)
@@ -648,6 +714,7 @@ for i_episode in loop:
         step_count += 1
 
     # --- Fine Episodio ---
+    pilota.update_epsilon()
 
     # Salviamo i punteggi
     scores.append(score)
@@ -661,5 +728,6 @@ for i_episode in loop:
     if (i_episode + 1) % 100 == 0:
         torch.save(pilota.q_net.state_dict(), f'checkpoint_ep_{i_episode+1}.pth')
 
+save_training_plot(scores, filename="grafico_finale.png")
 
 env.close()
