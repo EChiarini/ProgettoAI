@@ -14,6 +14,21 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import pygame
+import time
+import os
+import random
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torch.autograd as autograd
+from torch.autograd import Variable
+from collections import deque, namedtuple
+from tqdm import tqdm
+
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {DEVICE}")
 
 def argwhere(matrix, value):
   l = list()
@@ -462,30 +477,6 @@ def buildTrack(fileName = "./imola_track.csv"):
   return matrice_circuito
 
 
-import os
-import random
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import torch.autograd as autograd
-from torch.autograd import Variable
-from collections import deque, namedtuple
-from tqdm import tqdm
-
-env = TrackEnv(render_mode="human")
-state_shape = env.observation_space["agent_view"].shape
-
-state_size = env.observation_space["agent_view"].shape[0]
-number_actions = env.action_space.n
-print('State shape: ', state_shape)
-print('State size: ', state_size)
-print('Number of actions: ', number_actions)
-
-learning_rate = 5e-3
-minibatch_size = 100
-replay_buffer_size = int(1e5)
-interpolation_parameter = 1e-3
 
 class Network(nn.Module):
     def __init__(self, input_dim, action_size, seed=42):
@@ -522,64 +513,57 @@ class ReplayBuffer:
         return len(self.memory)
 
 class Agent:
-    def __init__(self, view_size, action_size, seed=42):
+    def __init__(self, view_size, action_size, number_episodes, seed=42):
+
+        learning_rate = 5e-3
+        minibatch_size = 100
+        replay_buffer_size = int(1e5)
+
         self.action_size = action_size
         self.view_size = view_size
         
         # Calcoliamo la dimensione totale dell'input appiattito
-        # Per ora è solo agent_view (view_size * view_size)
-        # In futuro sarà: (view_size*view_size) + num_altre_variabili
         self.input_dim = view_size * view_size 
         
-        self.q_net = Network(self.input_dim, action_size, seed)
-        self.target_net = Network(self.input_dim, action_size, seed)
+        # Spostiamo le reti sul DEVICE corretto
+        self.q_net = Network(self.input_dim, action_size, seed).to(DEVICE)
+        self.target_net = Network(self.input_dim, action_size, seed).to(DEVICE)
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.target_net.eval()
         
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
-        self.memory = ReplayBuffer(capacity=10000, batch_size=64, seed=seed)
+        self.memory = ReplayBuffer(capacity=replay_buffer_size, batch_size=minibatch_size, seed=seed)
         
-        self.gamma = 0.99   #discount factor
+        self.gamma = 0.99   # discount factor
         self.epsilon = 1.0
         self.epsilon_min = 0.01
         self.epsilon_decay = 1/(number_episodes*0.5)
         self.t_step = 0
 
-    # --- NUOVO METODO HELPER ---
     def _preprocess_state(self, state_dict):
         """
         Prende un dizionario (o lista di dizionari) ed estrae/appiattisce i dati
         in un unico array numpy o tensore.
         """
-        # Caso 1: Input singolo (durante select_action) -> {'agent_view': ...}
         if isinstance(state_dict, dict):
             view = state_dict["agent_view"]
-            # Appiattisci: (7, 7) -> (49,)
             return view.flatten()
             
-        # Caso 2: Batch dal Replay Buffer (durante learn) -> [{'agent_view': ...}, ...]
         elif isinstance(state_dict, (list, tuple)):
-            # Estraiamo 'agent_view' da ogni elemento della lista
             batch_views = [s["agent_view"] for s in state_dict]
-            # Convertiamo in un unico array numpy e appiattiamo ogni elemento
-            # Risultato shape: (Batch_Size, 49)
             return np.array(batch_views).reshape(len(batch_views), -1)
 
     def update_epsilon(self):
-        
-      self.epsilon = max(self.epsilon_min, self.epsilon - self.epsilon_decay)
-      return self.epsilon
-
-
+        self.epsilon = max(self.epsilon_min, self.epsilon - self.epsilon_decay)
+        return self.epsilon
 
     def select_action(self, state):
-        # state è un DICT: {'agent_view': array(7,7)}
-        
         # 1. Preprocess: estrae e appiattisce -> (49,)
         processed_state = self._preprocess_state(state)
         
-        # 2. Trasforma in Tensor e aggiungi batch dim -> (1, 49)
-        state_t = torch.from_numpy(processed_state).float().unsqueeze(0)
+        # 2. Trasforma in Tensor, aggiungi batch dim -> (1, 49) E SPOSTA SU DEVICE
+        # AGGIUNTO .to(DEVICE) QUI SOTTO
+        state_t = torch.from_numpy(processed_state).float().unsqueeze(0).to(DEVICE)
         
         self.q_net.eval()
         with torch.no_grad():
@@ -587,12 +571,11 @@ class Agent:
         self.q_net.train()
 
         if random.random() > self.epsilon:
-            return np.argmax(action_values.cpu().data.numpy())
+            return np.argmax(action_values.cpu().data.numpy()) # .cpu() serve per portarlo fuori dalla GPU se necessario
         else:
             return random.choice(np.arange(self.action_size))
 
     def step(self, state, action, reward, next_state, done):
-        # Salviamo il dizionario così com'è nella memoria
         self.memory.add(state, action, reward, next_state, done)
         
         self.t_step = (self.t_step + 1) % 4
@@ -601,23 +584,22 @@ class Agent:
                 self.learn()
 
     def learn(self):
-        # states qui è una tupla/lista di DIZIONARI
         states, actions, rewards, next_states, dones = self.memory.sample()
 
-        # 1. Preprocessiamo il batch di dizionari
-        # La funzione restituirà direttamente una matrice (Batch, 49)
+        # 1. Preprocessiamo il batch
         states_np = self._preprocess_state(states)
         next_states_np = self._preprocess_state(next_states)
 
-        # 2. Conversione in Tensor
-        states_t = torch.tensor(states_np).float()
-        next_states_t = torch.tensor(next_states_np).float()
+        # 2. Conversione in Tensor E SPOSTAMENTO SU DEVICE
+        # AGGIUNTO .to(DEVICE) A TUTTI I TENSORI
+        states_t = torch.tensor(states_np).float().to(DEVICE)
+        next_states_t = torch.tensor(next_states_np).float().to(DEVICE)
         
-        actions_t = torch.tensor(actions).long().unsqueeze(1)
-        rewards_t = torch.tensor(rewards).float().unsqueeze(1)
-        dones_t = torch.tensor(dones).float().unsqueeze(1)
+        actions_t = torch.tensor(actions).long().unsqueeze(1).to(DEVICE)
+        rewards_t = torch.tensor(rewards).float().unsqueeze(1).to(DEVICE)
+        dones_t = torch.tensor(dones).float().unsqueeze(1).to(DEVICE)
 
-        # --- Da qui in poi è uguale a prima ---
+        # --- Calcolo della loss ---
         q_expected = self.q_net(states_t).gather(1, actions_t)
         
         with torch.no_grad():
@@ -629,9 +611,6 @@ class Agent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        
-        # Aggiungi qui update_target logic se necessario
-
 
 def save_training_plot(scores, filename="training_plot.png", window_size=50):
     """
@@ -672,62 +651,154 @@ def save_training_plot(scores, filename="training_plot.png", window_size=50):
     # Chiudi la figura per liberare memoria
     plt.close()
 
-number_episodes = 10000
-step_limit = 1000
-step_count=0
 
-pilota = Agent(state_size, number_actions)
+def training(number_episodes):
+    env = TrackEnv(render_mode="human")
+    state_shape = env.observation_space["agent_view"].shape
 
-# Liste per tenere traccia dei punteggi
-scores = []
-scores_window = [] # Per la media mobile (es. ultimi 100 episodi)
+    state_size = env.observation_space["agent_view"].shape[0]
+    number_actions = env.action_space.n
+    print('State shape: ', state_shape)
+    print('State size: ', state_size)
+    print('Number of actions: ', number_actions)
 
-# Loop principale
-loop = tqdm(range(number_episodes))
+    interpolation_parameter = 1e-3
+    step_limit = 1000
+    step_count=0
 
-for i_episode in loop:
-    state, _ = env.reset()
-    score = 0 # Punteggio dell'episodio corrente
-    step_count = 0
+    pilota = Agent(state_size, number_actions, number_episodes)
 
-    terminated = False
-    truncated = False
+    # Liste per tenere traccia dei punteggi
+    scores = []
+    scores_window = [] # Per la media mobile (es. ultimi 100 episodi)
 
-    while not (terminated or truncated) and step_count < step_limit:
+    # Loop principale
+    loop = tqdm(range(number_episodes))
 
-        # 1. Scelta Azione
-        action = pilota.select_action(state)
+    for i_episode in loop:
+        state, _ = env.reset()
+        score = 0 # Punteggio dell'episodio corrente
+        step_count = 0
 
-        # 2. Step nell'ambiente
-        next_state, reward, terminated, truncated, _ = env.step(action)
-        done = terminated or truncated
+        terminated = False
+        truncated = False
 
+        while not (terminated or truncated) and step_count < step_limit:
+
+            # 1. Scelta Azione
+            action = pilota.select_action(state)
+
+            # 2. Step nell'ambiente
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
+
+            
+            
+
+            # 3. Addestramento (Memorizza e impara)
+            pilota.step(state, action, reward, next_state, done)
+
+            # 4. Aggiornamento variabili
+            state = next_state
+            score += reward
+            step_count += 1
+
+        # --- Fine Episodio ---
+        pilota.update_epsilon()
+
+        # Salviamo i punteggi
+        scores.append(score)
+        scores_window.append(score)
+        if len(scores_window) > 100: scores_window.pop(0) # Teniamo solo gli ultimi 100
+
+        # Aggiorniamo la barra di caricamento con le info utili
+        loop.set_description(f"Ep: {i_episode+1} | Score: {score:.2f} | Avg Score: {np.mean(scores_window):.2f} | Epsilon: {pilota.epsilon:.3f}")
+
+        # (Opzionale) Salviamo il modello se otteniamo un buon risultato o ogni 100 episodi
+        if (i_episode + 1) % 100 == 0:
+            torch.save(pilota.q_net.state_dict(), f'checkpoint_ep_{i_episode+1}.pth')
+
+    save_training_plot(scores, filename="grafico_finale.png")
+
+    env.close()
+
+def test_model(model_path, num_episodes=5, delay=0.1):
+    """
+    Carica un modello addestrato e lo visualizza in azione.
+    
+    Args:
+        model_path (str): Il percorso del file .pth (es. 'checkpoint_ep_500.pth')
+        num_episodes (int): Quanti episodi di test vuoi vedere.
+        delay (float): Secondi di pausa tra un frame e l'altro (per rallentare l'azione).
+    """
+    
+    # 1. Controlla se il file esiste
+    if not os.path.exists(model_path):
+        print(f"ERRORE: Il file '{model_path}' non esiste.")
+        return
+
+    print(f"Caricamento modello da: {model_path}...")
+
+    # 2. Crea l'ambiente in modalità 'human' per il rendering
+    #    Nota: view_size deve essere uguale a quello usato in training (7)
+    env_test = TrackEnv(render_mode="human")
+    
+    view_size = 7 
+    action_size = env_test.action_space.n
+
+    # 3. Istanzia l'agente (la struttura deve essere IDENTICA a quella del training)
+    #    Non ci serve la memoria o l'optimizer qui, ma la classe Agent li crea comunque.
+    pilota_test = Agent(view_size, action_size, 1)
+
+    # 4. Carica i pesi nella rete (q_net)
+    #    map_location='cpu' serve se hai addestrato su GPU ma testi su CPU
+    pilota_test.q_net.load_state_dict(torch.load(model_path,weights_only=True, map_location=torch.device(DEVICE)))
+    
+    # Imposta la rete in modalità valutazione (disattiva dropout, batchnorm, ecc.)
+    pilota_test.q_net.eval() 
+
+    # 5. Imposta Epsilon a 0 -> Solo sfruttamento (Exploitation), niente esplorazione
+    pilota_test.epsilon = 0.0
+
+    step_limit = 1000
+
+    # --- CICLO DI TEST ---
+    for i in range(num_episodes):
+        state, _ = env_test.reset()
+        score = 0
+        step = 0
+        done = False
         
+        print(f"\n--- Inizio Episodio di Test {i+1} ---")
         
+        while not done:
+            # Renderizza la scena
+            env_test.render()
+            
+            # Scegli l'azione (sarà sempre la migliore secondo la rete)
+            action = pilota_test.select_action(state)
+            
+            # Esegui l'azione
+            next_state, reward, terminated, truncated, _ = env_test.step(action)
+            
+            done = terminated or truncated
+            state = next_state
+            score += reward
+            step += 1
+            
+            # Rallenta un po' per permettere all'occhio umano di seguire
+            time.sleep(delay)
+            
+            # Sicurezza per evitare loop infiniti se l'agente si blocca
+            if step > step_limit:
+                print("Loop troppo lungo, interrompo episodio.")
+                break
 
-        # 3. Addestramento (Memorizza e impara)
-        pilota.step(state, action, reward, next_state, done)
+        print(f"Episodio {i+1} terminato. Punteggio Totale: {score:.2f}")
 
-        # 4. Aggiornamento variabili
-        state = next_state
-        score += reward
-        step_count += 1
+    env_test.close()
+    print("Test completato.")
 
-    # --- Fine Episodio ---
-    pilota.update_epsilon()
 
-    # Salviamo i punteggi
-    scores.append(score)
-    scores_window.append(score)
-    if len(scores_window) > 100: scores_window.pop(0) # Teniamo solo gli ultimi 100
-
-    # Aggiorniamo la barra di caricamento con le info utili
-    loop.set_description(f"Ep: {i_episode+1} | Score: {score:.2f} | Avg Score: {np.mean(scores_window):.2f} | Epsilon: {pilota.epsilon:.3f}")
-
-    # (Opzionale) Salviamo il modello se otteniamo un buon risultato o ogni 100 episodi
-    if (i_episode + 1) % 100 == 0:
-        torch.save(pilota.q_net.state_dict(), f'checkpoint_ep_{i_episode+1}.pth')
-
-save_training_plot(scores, filename="grafico_finale.png")
-
-env.close()
+#training(10000)
+test_model("checkpoint_ep_10000.pth")
