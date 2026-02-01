@@ -19,3 +19,4 @@ Gemfile.lock
 
 .venv/
 data/track_distance/
+models/checkpoints/
