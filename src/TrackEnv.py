@@ -45,7 +45,7 @@ def creaMatriceDistanze( nomeFile, direzione):
   df = pd.read_csv(nomeFile,
                    #sep = ';',
                    header = None)
-  matrice_distanze = df.to_numpy()
+  matrice_distanze = df.to_numpy().copy()
   traguardo = argwhere(matrice_distanze,2)
 
   larghezza, altezza=matrice_distanze.shape
@@ -332,15 +332,18 @@ class TrackEnv(gym.Env):
         truncated = True
     
     else:
-        #reward = self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+        # Default small negative step penalty
+        reward = -1
 
-        for x in self._checkpoints[f"checkpoint_{self._progresso+1}"]:
-            
-            if np.array_equal(self._agent_location,x):
+        # Safely get the next checkpoint list (may be empty or missing)
+        checkpoint_key = f"checkpoint_{self._progresso+1}"
+        checkpoint_list = self._checkpoints.get(checkpoint_key, [])
+
+        for x in checkpoint_list:
+            if np.array_equal(self._agent_location, x):
                 reward = 1000
-                self._progresso=self._progresso+1
-            else:
-                reward = -1
+                self._progresso = self._progresso + 1
+                break
 
 
     '''
@@ -468,13 +471,13 @@ class TrackEnv(gym.Env):
 
 
 def buildTrack(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
-  df = pd.read_csv(fileName, header = None
-                   #,sep=';'
-                   )
-  matrice_circuito = df.to_numpy()
-  print(f"Dimensioni matrice:{matrice_circuito.shape}")
-  #print(matrice_circuito)
-  return matrice_circuito
+    # Il file usa il separatore ';' — specifichiamolo per ottenere una matrice numerica
+    df = pd.read_csv(fileName, header=None, sep=';')
+    # Forziamo il tipo numerico (int) per evitare stringhe che impediscono i confronti
+    df = df.astype(int)
+    matrice_circuito = df.to_numpy()
+    print(f"Dimensioni matrice:{matrice_circuito.shape}")
+    return matrice_circuito
 
 
 
@@ -732,12 +735,17 @@ def test_model(model_path, num_episodes=5, delay=0.1):
         delay (float): Secondi di pausa tra un frame e l'altro (per rallentare l'azione).
     """
     
-    # 1. Controlla se il file esiste
-    if not os.path.exists(os.getcwd() + "/models/checkpoints/"+model_path):
-        print(f"ERRORE: Il file '{model_path}' non esiste.")
+    # 1. Risolvi il percorso del file modello (accetta path assoluti o solo il nome)
+    if os.path.isabs(model_path):
+        model_fullpath = model_path
+    else:
+        model_fullpath = os.path.join(os.getcwd(), "models", "checkpoints", model_path)
+
+    if not os.path.exists(model_fullpath):
+        print(f"ERRORE: Il file '{model_fullpath}' non esiste.")
         return
 
-    print(f"Caricamento modello da: {model_path}...")
+    print(f"Caricamento modello da: {model_fullpath}...")
 
     # 2. Crea l'ambiente in modalità 'human' per il rendering
     #    Nota: view_size deve essere uguale a quello usato in training (7)
@@ -751,8 +759,9 @@ def test_model(model_path, num_episodes=5, delay=0.1):
     pilota_test = Agent(view_size, action_size, 1)
 
     # 4. Carica i pesi nella rete (q_net)
-    #    map_location='cpu' serve se hai addestrato su GPU ma testi su CPU
-    pilota_test.q_net.load_state_dict(torch.load(model_path,weights_only=True, map_location=torch.device(DEVICE)))
+    #    map_location serve se hai addestrato su GPU ma testi su CPU
+    state_dict = torch.load(model_fullpath, map_location=torch.device(DEVICE))
+    pilota_test.q_net.load_state_dict(state_dict)
     
     # Imposta la rete in modalità valutazione (disattiva dropout, batchnorm, ecc.)
     pilota_test.q_net.eval() 
