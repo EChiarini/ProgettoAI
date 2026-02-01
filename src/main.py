@@ -53,9 +53,6 @@ def run_training(number_episodes):
             next_state, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
 
-            
-            
-
             # 3. Addestramento (Memorizza e impara)
             pilota.step(state, action, reward, next_state, done)
 

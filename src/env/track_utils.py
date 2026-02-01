@@ -32,7 +32,7 @@ def count_numpy_list(list_numpy, param):
     return cont
 
 def crea_matrice_distanze(percorsoFile, direzione):
-    df = pd.read_csv(percorsoFile, sep = ';', header = None)
+    df = pd.read_csv(percorsoFile, sep = ',', header = None)
     matrice_distanze = df.to_numpy().copy()
     traguardo = argwhere(matrice_distanze,2)
 
