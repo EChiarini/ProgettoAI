@@ -139,7 +139,7 @@ class TrackEnv(gym.Env):
         self.metadata = {"render_fps": 10, "render_modes": ["human", "rgb_array"]}
         
         self.matrix = buildTrack()
-        self.distance_matrix = creaMatriceDistanze("../data/tracks/track_imola.csv", "destra")
+        self.distance_matrix = creaMatriceDistanze(os.getcwd() + "/data/tracks/track_imola.csv", "destra")
         
         # --- VARIABILI PER IL RENDERING ---
         self.render_mode = render_mode
@@ -467,7 +467,7 @@ class TrackEnv(gym.Env):
 
 
 
-def buildTrack(fileName = "../data/tracks/track_imola.csv"):
+def buildTrack(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
   df = pd.read_csv(fileName, header = None
                    #,sep=';'
                    )
@@ -733,7 +733,7 @@ def test_model(model_path, num_episodes=5, delay=0.1):
     """
     
     # 1. Controlla se il file esiste
-    if not os.path.exists(model_path):
+    if not os.path.exists(os.getcwd() + "/models/checkpoints/"+model_path):
         print(f"ERRORE: Il file '{model_path}' non esiste.")
         return
 
@@ -800,5 +800,5 @@ def test_model(model_path, num_episodes=5, delay=0.1):
     print("Test completato.")
 
 
-#training(10000)
-test_model("checkpoint_ep_10000.pth")
+#training(10000) models\checkpoints\checkpoint_ep_60000.pth
+test_model("checkpoint_ep_60000.pth")
