@@ -723,7 +723,7 @@ def training(number_episodes):
 
         # (Opzionale) Salviamo il modello se otteniamo un buon risultato o ogni 100 episodi
         if (i_episode + 1) % 100 == 0:
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'checkpoint_ep_{i_episode+1}.pth')
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/checkpoint_ep_{i_episode+1}.pth')
 
 
     Path("../results/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
