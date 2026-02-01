@@ -25,6 +25,7 @@ import torch.autograd as autograd
 from torch.autograd import Variable
 from collections import deque, namedtuple
 from tqdm import tqdm
+from pathlib import Path
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -41,8 +42,8 @@ def argwhere(matrix, value):
 
   return l
 
-def creaMatriceDistanze( nomeFile, direzione):
-  df = pd.read_csv(nomeFile,
+def creaMatriceDistanze(percorsoFile, direzione):
+  df = pd.read_csv(percorsoFile,
                    #sep = ';',
                    header = None)
   matrice_distanze = df.to_numpy().copy()
@@ -114,7 +115,9 @@ def creaMatriceDistanze( nomeFile, direzione):
   df = pd.DataFrame(a)
 
   # 3. Salviamo in CSV
-  df.to_csv('mio_file.csv', index=False, header=False)
+  Path("../data/track_distance/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
+  nome_circuito = percorsoFile.split("/")[-1].split(".")[0]
+  df.to_csv(f'../data/track_distance/{nome_circuito}_distance.csv', index=False, header=False)
 
   return a
 
