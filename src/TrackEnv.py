@@ -26,6 +26,7 @@ from torch.autograd import Variable
 from collections import deque, namedtuple
 from tqdm import tqdm
 from pathlib import Path
+import copy
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -44,7 +45,7 @@ def argwhere(matrix, value):
 
 def creaMatriceDistanze(percorsoFile, direzione):
   df = pd.read_csv(percorsoFile,
-                   #sep = ';',
+                   sep = ';',
                    header = None)
   matrice_distanze = df.to_numpy().copy()
   traguardo = argwhere(matrice_distanze,2)
@@ -63,7 +64,7 @@ def creaMatriceDistanze(percorsoFile, direzione):
 
 
 
-  index = traguardo.copy() #secondo me ha più senso calcolare la distanza dalla prima cella del traguardo disponibile rispetto ad una (list([[35,50]]))
+  index = copy.deepcopy(traguardo) #secondo me ha più senso calcolare la distanza dalla prima cella del traguardo disponibile rispetto ad una (list([[35,50]]))
 
 
   for i in index:
@@ -474,9 +475,7 @@ class TrackEnv(gym.Env):
 
 
 def buildTrack(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
-    # Il file usa il separatore ';' — specifichiamolo per ottenere una matrice numerica
-    df = pd.read_csv(fileName, header=None, sep=';')
-    # Forziamo il tipo numerico (int) per evitare stringhe che impediscono i confronti
+    df = pd.read_csv(fileName, header=None, sep=',')
     df = df.astype(int)
     matrice_circuito = df.to_numpy()
     print(f"Dimensioni matrice:{matrice_circuito.shape}")
@@ -668,6 +667,8 @@ def training(number_episodes):
     print('State size: ', state_size)
     print('Number of actions: ', number_actions)
 
+    Path("../models/checkpoints").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
+
     interpolation_parameter = 1e-3
     step_limit = 1000
     step_count=0
@@ -722,9 +723,11 @@ def training(number_episodes):
 
         # (Opzionale) Salviamo il modello se otteniamo un buon risultato o ogni 100 episodi
         if (i_episode + 1) % 100 == 0:
-            torch.save(pilota.q_net.state_dict(), f'checkpoint_ep_{i_episode+1}.pth')
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'checkpoint_ep_{i_episode+1}.pth')
 
-    save_training_plot(scores, filename="grafico_finale.png")
+
+    Path("../results/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
+    save_training_plot(scores, filename = os.getcwd() + "/results/grafico_finale.png")
 
     env.close()
 
@@ -772,7 +775,7 @@ def test_model(model_path, num_episodes=5, delay=0.1):
     # 5. Imposta Epsilon a 0 -> Solo sfruttamento (Exploitation), niente esplorazione
     pilota_test.epsilon = 0.0
 
-    step_limit = 1000
+    step_limit = 300
 
     # --- CICLO DI TEST ---
     for i in range(num_episodes):
@@ -812,5 +815,5 @@ def test_model(model_path, num_episodes=5, delay=0.1):
     print("Test completato.")
 
 
-#training(10000) models\checkpoints\checkpoint_ep_60000.pth
-test_model("checkpoint_ep_60000.pth")
+training(101)
+# test_model("checkpoint_ep_800.pth")
