@@ -139,7 +139,7 @@ class TrackEnv(gym.Env):
         self.metadata = {"render_fps": 10, "render_modes": ["human", "rgb_array"]}
         
         self.matrix = buildTrack()
-        self.distance_matrix = creaMatriceDistanze("./track_imola.csv", "destra")
+        self.distance_matrix = creaMatriceDistanze("../data/tracks/track_imola.csv", "destra")
         
         # --- VARIABILI PER IL RENDERING ---
         self.render_mode = render_mode
@@ -467,7 +467,7 @@ class TrackEnv(gym.Env):
 
 
 
-def buildTrack(fileName = "./track_imola.csv"):
+def buildTrack(fileName = "../data/tracks/track_imola.csv"):
   df = pd.read_csv(fileName, header = None
                    #,sep=';'
                    )
