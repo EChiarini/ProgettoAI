@@ -272,9 +272,9 @@ class TrackEnv(gym.Env):
                 # Determina il colore in base al valore nella matrice
                 color = None
                 if val == 2:
-                    color = (255, 0, 0)      # Rosso per il traguardo
+                    color = (112, 255, 160)  # Azzurrino per il traguardo
                 elif val == 0:                
-                    color= (255,255,255)      #Bianco per i cordoli
+                    color= (255,255,255)     # Bianco per i cordoli
                 elif val == 1:
                     color = (128, 128, 128)  # Grigio per la strada
                 else:
@@ -293,10 +293,10 @@ class TrackEnv(gym.Env):
                     )
 
         # --- DISEGNO DELL'AGENTE ---
-        # L'agente è un cerchio blu
+        # L'agente è un cerchio blu -> NO
         pygame.draw.circle(
             canvas,
-            (0, 0, 255), # Blu
+            (255, 0, 0), # Rosso
             (int((self._agent_location[1] + 0.5) * pix_square_size), # X = colonna
             int((self._agent_location[0] + 0.5) * pix_square_size)), # Y = riga
             int(pix_square_size / 3),
