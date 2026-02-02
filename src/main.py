@@ -21,9 +21,10 @@ def run_training(number_episodes):
     print('State size: ', state_size)
     print('Number of actions: ', number_actions)
 
-    Path("../models/checkpoints").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
+    Path("../models/checkpoints").mkdir(parents=True, exist_ok=True)
+    Path("../results/").mkdir(parents=True, exist_ok=True)
 
-    interpolation_parameter = 1e-3
+
     step_limit = 1000
     step_count=0
 
@@ -32,6 +33,7 @@ def run_training(number_episodes):
     # Liste per tenere traccia dei punteggi
     scores = []
     scores_window = [] # Per la media mobile (es. ultimi 100 episodi)
+    best_avg_score = -float('inf')
 
     # Loop principale
     loop = tqdm(range(number_episodes))
@@ -68,16 +70,22 @@ def run_training(number_episodes):
         scores.append(score)
         scores_window.append(score)
         if len(scores_window) > 100: scores_window.pop(0) # Teniamo solo gli ultimi 100
+        avg_score = np.mean(scores_window)
 
         # Aggiorniamo la barra di caricamento con le info utili
         loop.set_description(f"Ep: {i_episode+1} | Score: {score:.2f} | Avg Score: {np.mean(scores_window):.2f} | Epsilon: {pilota.epsilon:.3f}")
 
-        # (Opzionale) Salviamo il modello se otteniamo un buon risultato o ogni 100 episodi
+
+        # Salva modello il migliore
+        if avg_score > best_avg_score and len(scores_window) >= 100:
+            best_avg_score = avg_score
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/best_model.pth')
+
+        # Salviamo il modello ogni 100 episodi
         if (i_episode + 1) % 100 == 0:
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/checkpoint_ep_{i_episode+1}.pth')
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/cp_{i_episode+1}.pth')
 
-
-    Path("../results/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
+    # Salva grafico
     save_training_plot(scores, filename = os.getcwd() + "/results/grafico_finale.png")
 
     env.close()
@@ -88,7 +96,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     Carica un modello addestrato e lo visualizza in azione.
     
     Args:
-        model_path (str): Il percorso del file .pth (es. 'checkpoint_ep_500.pth')
+        model_path (str): Il percorso del file .pth (es. 'cp_500.pth')
         num_episodes (int): Quanti episodi di test vuoi vedere.
         delay (float): Secondi di pausa tra un frame e l'altro (per rallentare l'azione).
     """
@@ -127,7 +135,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     # 5. Imposta Epsilon a 0 -> Solo sfruttamento (Exploitation), niente esplorazione
     pilota_test.epsilon = 0.0
 
-    step_limit = 300
+    step_limit = 1000
 
     # --- CICLO DI TEST ---
     for i in range(num_episodes):
@@ -169,8 +177,8 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "test"])
-    parser.add_argument("--ep", type=int, default=10000, help="numero di episodi per il training (default: 10000)")
-    parser.add_argument("--mod", type=int, default=100, help="nome del file .pth (default: 100)")
+    parser.add_argument("--ep", type=int, default=1000, help="numero di episodi per il training (default: 10000)")
+    parser.add_argument("--mod", type=str, default="best_model.pth", help="file per il testing (default: best_model.pth)")
     args = parser.parse_args()
 
     if args.mode == "train":
@@ -179,4 +187,4 @@ if __name__ == "__main__":
         
     elif args.mode == "test":
         print(f"testo con {args.mod}")
-        run_testing(f"checkpoint_ep_{args.mod}.pth")
+        run_testing(args.mod)
