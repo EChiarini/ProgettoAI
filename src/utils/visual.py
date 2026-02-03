@@ -1,7 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def save_training_plot(scores, filename="training_plot.png", window_size=50):
+DEFAULT_WINDOW_SIZE = 50
+FIGURE_SIZE = (10, 6)
+MOVING_AVG_LINEWIDTH = 2
+GRID_LINESTYLE = "--"
+GRID_ALPHA = 0.7
+
+
+def save_training_plot(scores, filename="training_plot.png", window_size=DEFAULT_WINDOW_SIZE):
     """
     Crea e salva un grafico dell'andamento dei reward.
     
@@ -11,7 +18,7 @@ def save_training_plot(scores, filename="training_plot.png", window_size=50):
         window_size (int): L'ampiezza della finestra per la media mobile.
     """
     # Imposta la dimensione della figura
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=FIGURE_SIZE)
     
     
     # 2. Calcolo e Plot della Media Mobile (Trend)
@@ -24,14 +31,14 @@ def save_training_plot(scores, filename="training_plot.png", window_size=50):
         # (parte dall'episodio 'window_size')
         x_axis = np.arange(window_size - 1, len(scores))
         
-        plt.plot(x_axis, moving_avg, color='blue', linewidth=2, label=f'Media Mobile ({window_size} ep)')
+        plt.plot(x_axis, moving_avg, color='blue', linewidth=MOVING_AVG_LINEWIDTH, label=f'Media Mobile ({window_size} ep)')
 
     # Etichette e Titolo
     plt.title('Andamento Addestramento DQN')
     plt.xlabel('Episodio')
     plt.ylabel('Reward Totale (Score)')
     plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.grid(True, linestyle=GRID_LINESTYLE, alpha=GRID_ALPHA)
     
     # Salva il file
     plt.savefig(filename)

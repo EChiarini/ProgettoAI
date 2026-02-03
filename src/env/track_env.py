@@ -1,36 +1,55 @@
 import gymnasium as gym
 import numpy as np
 import pygame
-import os
 from .track_utils import build_track, crea_matrice_distanze, argwhere
+from .track_constants import (
+    ACTION_SPACE_SIZE,
+    CHECKPOINT_REWARD,
+    DEFAULT_DISTANCE_DIRECTION,
+    NUM_CHECKPOINTS,
+    OBS_HIGH,
+    OBS_LOW,
+    OFFROAD_REWARD,
+    RENDER_FPS,
+    ROAD_WIDTH,
+    STEP_PENALTY,
+    TRACK_CURB_VALUE,
+    TRACK_FINISH_VALUE,
+    TRACK_OFFROAD_VALUE,
+    TRACK_ROAD_VALUE,
+    TRACK_UNKNOWN_VALUE,
+    VIEW_SIZE,
+    WINDOW_SIZE_PX,
+    get_default_track_path,
+)
 
 class TrackEnv(gym.Env):
 
     def __init__(self, render_mode=None): 
       
         # Metadati per il rendering (es. 10 FPS per vederlo con calma)
-        self.metadata = {"render_fps": 10, "render_modes": ["human", "rgb_array"]}
+        self.metadata = {"render_fps": RENDER_FPS, "render_modes": ["human", "rgb_array"]}
         
         self.matrix = build_track()
-        self.distance_matrix = crea_matrice_distanze(os.getcwd() + "/data/tracks/track_imola.csv", "destra")
+        self.distance_matrix = crea_matrice_distanze(get_default_track_path(), DEFAULT_DISTANCE_DIRECTION)
         
         # --- VARIABILI PER IL RENDERING ---
         self.render_mode = render_mode
-        self.window_size = 800  # Dimensione della finestra in pixel
+        self.window_size = WINDOW_SIZE_PX  # Dimensione della finestra in pixel
         self.window = None      # Finestra Pygame
         self.clock = None       # Clock per gestire gli FPS
         # ----------------------------------
 
-        self.view_size = 7
-        self.road_width = 5
+        self.view_size = VIEW_SIZE
+        self.road_width = ROAD_WIDTH
         self.trajectory = list()
 
-        coordinates = np.argwhere(self.matrix == 2)
+        coordinates = np.argwhere(self.matrix == TRACK_FINISH_VALUE)
         self._target_location = np.array(coordinates, dtype=np.int32)
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
         #self._agent_velocity = 1
 
-        self.action_space = gym.spaces.Discrete(4)
+        self.action_space = gym.spaces.Discrete(ACTION_SPACE_SIZE)
         
         self._action_to_direction = {
             0: np.array([0, 1]),
@@ -42,8 +61,8 @@ class TrackEnv(gym.Env):
         self.observation_space = gym.spaces.Dict({  #i dict servono per spazi eterogenei
                 # 1. La sottomatrice locale (come prima)
                 "agent_view": gym.spaces.Box( #i box servono per spazi omogenei
-                    low=-2,
-                    high=2,
+                    low=OBS_LOW,
+                    high=OBS_HIGH,
                     shape=(self.view_size, self.view_size),
                     dtype=np.int8
                 )
@@ -69,7 +88,7 @@ class TrackEnv(gym.Env):
             })
 
         self._checkpoints = dict()
-        self.numero_checkpoints=7
+        self.numero_checkpoints = NUM_CHECKPOINTS
 
         valore_checkpoint=self.distance_matrix.max()//self.numero_checkpoints
         for i in range(self.numero_checkpoints-1):
@@ -94,7 +113,7 @@ class TrackEnv(gym.Env):
         view_matrix = np.ones(shape=(self.view_size, self.view_size))
         # inizializzo tutte le celle viste dal pilota come non esistenti
         for i in range(self.view_size):
-            view_matrix[i]=view_matrix[i]*-2
+            view_matrix[i] = view_matrix[i] * TRACK_UNKNOWN_VALUE
         #indice della prima cella (top-left) della matrice della vista pilota nella matrice grande
         tl_x = self._agent_location[0] - view_padding
         tl_y = self._agent_location[1] - view_padding
@@ -143,7 +162,7 @@ class TrackEnv(gym.Env):
 
         self._progresso = 0
 
-        coordinates = np.argwhere(self.matrix == 2)
+        coordinates = np.argwhere(self.matrix == TRACK_FINISH_VALUE)
 
         #da cambiare
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype = np.int32)
@@ -187,13 +206,13 @@ class TrackEnv(gym.Env):
         quindi aggiungerei un
         '''
 
-        if self.matrix[self._agent_location[0],self._agent_location[1]] == -1:
-            reward = -1000
+        if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
+            reward = OFFROAD_REWARD
             truncated = True
     
         else:
             # Default small negative step penalty
-            reward = -1
+            reward = STEP_PENALTY
 
             # Safely get the next checkpoint list (may be empty or missing)
             checkpoint_key = f"checkpoint_{self._progresso+1}"
@@ -201,7 +220,7 @@ class TrackEnv(gym.Env):
 
             for x in checkpoint_list:
                 if np.array_equal(self._agent_location, x):
-                    reward = 1000
+                    reward = CHECKPOINT_REWARD
                     self._progresso = self._progresso + 1
                     break
 
@@ -271,11 +290,11 @@ class TrackEnv(gym.Env):
                 
                 # Determina il colore in base al valore nella matrice
                 color = None
-                if val == 2:
+                if val == TRACK_FINISH_VALUE:
                     color = (112, 255, 160)  # Azzurrino per il traguardo
-                elif val == 0:                
+                elif val == TRACK_CURB_VALUE:                
                     color= (255,255,255)     # Bianco per i cordoli
-                elif val == 1:
+                elif val == TRACK_ROAD_VALUE:
                     color = (128, 128, 128)  # Grigio per la strada
                 else:
                     color = (34, 139, 34)    # Verde scuro per fuori strada (-1, -2)

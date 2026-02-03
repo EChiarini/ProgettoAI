@@ -11,6 +11,15 @@ from agents.agent import Agent
 from utils.visual import save_training_plot
 from utils import DEVICE
 
+DEFAULT_TRAIN_EPISODES = 1000
+DEFAULT_TEST_EPISODES = 5
+DEFAULT_TEST_DELAY = 0.1
+STEP_LIMIT = 1000
+SCORES_WINDOW_SIZE = 100
+SAVE_CHECKPOINT_EVERY = 100
+DEFAULT_MODEL_FILENAME = "best_model.pth"
+TEST_AGENT_EPISODES = 1
+
 def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
     state_shape = env.observation_space["agent_view"].shape
@@ -25,14 +34,14 @@ def run_training(number_episodes):
     Path("../results/").mkdir(parents=True, exist_ok=True)
 
 
-    step_limit = 1000
+    step_limit = STEP_LIMIT
     step_count=0
 
     pilota = Agent(state_size, number_actions, number_episodes)
 
     # Liste per tenere traccia dei punteggi
     scores = []
-    scores_window = [] # Per la media mobile (es. ultimi 100 episodi)
+    scores_window = [] # Per la media mobile
     best_avg_score = -float('inf')
 
     # Loop principale
@@ -69,7 +78,7 @@ def run_training(number_episodes):
         # Salviamo i punteggi
         scores.append(score)
         scores_window.append(score)
-        if len(scores_window) > 100: scores_window.pop(0) # Teniamo solo gli ultimi 100
+        if len(scores_window) > SCORES_WINDOW_SIZE: scores_window.pop(0) # Teniamo solo gli ultimi N
         avg_score = np.mean(scores_window)
 
         # Aggiorniamo la barra di caricamento con le info utili
@@ -77,12 +86,12 @@ def run_training(number_episodes):
 
 
         # Salva modello il migliore
-        if avg_score > best_avg_score and len(scores_window) >= 100:
+        if avg_score > best_avg_score and len(scores_window) >= SCORES_WINDOW_SIZE:
             best_avg_score = avg_score
             torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/best_model.pth')
 
-        # Salviamo il modello ogni 100 episodi
-        if (i_episode + 1) % 100 == 0:
+        # Salviamo il modello ogni N episodi
+        if (i_episode + 1) % SAVE_CHECKPOINT_EVERY == 0:
             torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/cp_{i_episode+1}.pth')
 
     # Salva grafico
@@ -91,7 +100,7 @@ def run_training(number_episodes):
     env.close()
 
 
-def run_testing(model_path, num_episodes=5, delay=0.1):
+def run_testing(model_path, num_episodes=DEFAULT_TEST_EPISODES, delay=DEFAULT_TEST_DELAY):
     """
     Carica un modello addestrato e lo visualizza in azione.
     
@@ -114,15 +123,15 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     print(f"Caricamento modello da: {model_fullpath}...")
 
     # 2. Crea l'ambiente in modalità 'human' per il rendering
-    #    Nota: view_size deve essere uguale a quello usato in training (7)
+    #    Nota: view_size deve essere uguale a quello usato in training
     env_test = TrackEnv(render_mode="human")
     
-    view_size = 7 
+    view_size = env_test.view_size
     action_size = env_test.action_space.n
 
     # 3. Istanzia l'agente (la struttura deve essere IDENTICA a quella del training)
     #    Non ci serve la memoria o l'optimizer qui, ma la classe Agent li crea comunque.
-    pilota_test = Agent(view_size, action_size, 1)
+    pilota_test = Agent(view_size, action_size, TEST_AGENT_EPISODES)
 
     # 4. Carica i pesi nella rete (q_net)
     #    map_location serve se hai addestrato su GPU ma testi su CPU
@@ -135,7 +144,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     # 5. Imposta Epsilon a 0 -> Solo sfruttamento (Exploitation), niente esplorazione
     pilota_test.epsilon = 0.0
 
-    step_limit = 1000
+    step_limit = STEP_LIMIT
 
     # --- CICLO DI TEST ---
     for i in range(num_episodes):
@@ -177,8 +186,8 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "test"])
-    parser.add_argument("--ep", type=int, default=1000, help="numero di episodi per il training (default: 10000)")
-    parser.add_argument("--mod", type=str, default="best_model.pth", help="file per il testing (default: best_model.pth)")
+    parser.add_argument("--ep", type=int, default=DEFAULT_TRAIN_EPISODES, help=f"numero di episodi per il training (default: {DEFAULT_TRAIN_EPISODES})")
+    parser.add_argument("--mod", type=str, default=DEFAULT_MODEL_FILENAME, help=f"file per il testing (default: {DEFAULT_MODEL_FILENAME})")
     args = parser.parse_args()
 
     if args.mode == "train":

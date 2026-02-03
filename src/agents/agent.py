@@ -7,9 +7,19 @@ from collections import deque
 from .network import Network
 from utils import DEVICE
 
+DEFAULT_SEED = 42
+LEARNING_RATE = 5e-3
+MINIBATCH_SIZE = 100
+REPLAY_BUFFER_SIZE = int(1e5)
+DISCOUNT_FACTOR = 0.99
+EPSILON_START = 1.0
+EPSILON_MIN = 0.01
+EPSILON_DECAY_PORTION = 0.5
+TARGET_UPDATE_EVERY = 4
+
 class ReplayBuffer:
 
-    def __init__(self, capacity, batch_size, seed=42):
+    def __init__(self, capacity, batch_size, seed=DEFAULT_SEED):
         self.memory = deque(maxlen=capacity)
         self.batch_size = batch_size
         self.seed = random.seed(seed)
@@ -32,10 +42,10 @@ class ReplayBuffer:
 
 class Agent:
 
-    def __init__(self, view_size, action_size, number_episodes, seed=42):
-        learning_rate = 5e-3
-        minibatch_size = 100
-        replay_buffer_size = int(1e5)
+    def __init__(self, view_size, action_size, number_episodes, seed=DEFAULT_SEED):
+        learning_rate = LEARNING_RATE
+        minibatch_size = MINIBATCH_SIZE
+        replay_buffer_size = REPLAY_BUFFER_SIZE
 
         self.action_size = action_size
         self.view_size = view_size
@@ -52,10 +62,10 @@ class Agent:
         self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
         self.memory = ReplayBuffer(capacity=replay_buffer_size, batch_size=minibatch_size, seed=seed)
         
-        self.gamma = 0.99   # discount factor
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 1/(number_episodes*0.5)
+        self.gamma = DISCOUNT_FACTOR   # discount factor
+        self.epsilon = EPSILON_START
+        self.epsilon_min = EPSILON_MIN
+        self.epsilon_decay = 1 / (number_episodes * EPSILON_DECAY_PORTION)
         self.t_step = 0
 
     def _preprocess_state(self, state_dict):
@@ -99,7 +109,7 @@ class Agent:
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
         
-        self.t_step = (self.t_step + 1) % 4
+        self.t_step = (self.t_step + 1) % TARGET_UPDATE_EVERY
         if self.t_step == 0:
             if len(self.memory) > self.memory.batch_size:
                 self.learn()

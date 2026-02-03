@@ -1,7 +1,12 @@
 import pandas as pd
 import copy
-import os
 from pathlib import Path
+from .track_constants import (
+  get_default_track_path,
+  TRACK_FINISH_VALUE,
+  TRACK_OFFROAD_VALUE,
+  TRACK_UNKNOWN_VALUE,
+)
 
 def argwhere(matrix, value):
   l = list()
@@ -15,24 +20,26 @@ def argwhere(matrix, value):
   return l
 
 
-def build_track(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
-    df = pd.read_csv(fileName, header=None, sep=',')
-    df = df.astype(int)
-    matrice_circuito = df.to_numpy()
-    print(f"Dimensioni matrice:{matrice_circuito.shape}")
-    return matrice_circuito
+def build_track(fileName=None):
+  if fileName is None:
+    fileName = get_default_track_path()
+  df = pd.read_csv(fileName, header=None, sep=',')
+  df = df.astype(int)
+  matrice_circuito = df.to_numpy()
+  print(f"Dimensioni matrice:{matrice_circuito.shape}")
+  return matrice_circuito
 
 def crea_matrice_distanze(percorsoFile, direzione):
     df = pd.read_csv(percorsoFile, sep = ',', header = None)
     matrice_distanze = df.to_numpy().copy()
-    traguardo = argwhere(matrice_distanze,2)
+    traguardo = argwhere(matrice_distanze, TRACK_FINISH_VALUE)
 
     larghezza, altezza=matrice_distanze.shape
 
     for x in range(larghezza):
         for y in range(altezza):
-            if matrice_distanze[x,y] != -1:
-                matrice_distanze[x,y] = -2
+            if matrice_distanze[x,y] != TRACK_OFFROAD_VALUE:
+                matrice_distanze[x,y] = TRACK_UNKNOWN_VALUE
 
     a = matrice_distanze
 
@@ -63,19 +70,19 @@ def crea_matrice_distanze(percorsoFile, direzione):
     while len(index) != 0:
         i = index.pop(0)
         #bisogna capire come non fare andare all'indietro del traguardo
-        if (i[1]-1) >= 0 and a[i[0],i[1]-1] == -2 and traguardo.count([i[0],i[1]-1]) == 0:
+        if (i[1]-1) >= 0 and a[i[0],i[1]-1] == TRACK_UNKNOWN_VALUE and traguardo.count([i[0],i[1]-1]) == 0:
             a[i[0],i[1]-1] = a[i[0],i[1]]+1
             index.append([i[0],i[1]-1])
 
-        if (i[1]+1) < altezza and a[i[0],i[1]+1] == -2  and traguardo.count([i[0],i[1]+1]) == 0:
+        if (i[1]+1) < altezza and a[i[0],i[1]+1] == TRACK_UNKNOWN_VALUE  and traguardo.count([i[0],i[1]+1]) == 0:
             a[i[0],i[1]+1] = a[i[0],i[1]]+1
             index.append([i[0],i[1]+1])
 
-        if (i[0]-1) >= 0 and a[i[0]-1,i[1]] == -2  and traguardo.count([i[0]-1,i[1]]) == 0:
+        if (i[0]-1) >= 0 and a[i[0]-1,i[1]] == TRACK_UNKNOWN_VALUE  and traguardo.count([i[0]-1,i[1]]) == 0:
             a[i[0]-1,i[1]] = a[i[0],i[1]]+1
             index.append([i[0]-1,i[1]])
 
-        if (i[0]+1) < larghezza and a[i[0]+1,i[1]] == -2  and traguardo.count([i[0]+1,i[1]]) == 0:
+        if (i[0]+1) < larghezza and a[i[0]+1,i[1]] == TRACK_UNKNOWN_VALUE  and traguardo.count([i[0]+1,i[1]]) == 0:
             a[i[0]+1,i[1]] = a[i[0],i[1]]+1
             index.append([i[0]+1,i[1]])
 
