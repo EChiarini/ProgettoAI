@@ -21,7 +21,7 @@ def run_training(number_episodes):
     print('State size: ', state_size)
     print('Number of actions: ', number_actions)
 
-    Path("../models/checkpoints").mkdir(parents=True, exist_ok=True)
+    Path("../").mkdir(parents=True, exist_ok=True)
     Path("../results/").mkdir(parents=True, exist_ok=True)
 
 
@@ -39,7 +39,7 @@ def run_training(number_episodes):
     loop = tqdm(range(number_episodes))
 
     for i_episode in loop:
-        state, _ = env.reset()
+        state, _ = env.reset(options={"direzione":"destra"})
         score = 0 # Punteggio dell'episodio corrente
         step_count = 0
 
@@ -79,11 +79,11 @@ def run_training(number_episodes):
         # Salva modello il migliore
         if avg_score > best_avg_score and len(scores_window) >= 100:
             best_avg_score = avg_score
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/best_model.pth')
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/best_model.pth')
 
         # Salviamo il modello ogni 100 episodi
         if (i_episode + 1) % 100 == 0:
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/models/checkpoints/cp_{i_episode+1}.pth')
+            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/cp_{i_episode+1}.pth')
 
     # Salva grafico
     save_training_plot(scores, filename = os.getcwd() + "/results/grafico_finale.png")
@@ -105,7 +105,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     if os.path.isabs(model_path):
         model_fullpath = model_path
     else:
-        model_fullpath = os.path.join(os.getcwd(), "models", "checkpoints", model_path)
+        model_fullpath = os.path.join(os.getcwd(), model_path)
 
     if not os.path.exists(model_fullpath):
         print(f"ERRORE: Il file '{model_fullpath}' non esiste.")
@@ -139,7 +139,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
 
     # --- CICLO DI TEST ---
     for i in range(num_episodes):
-        state, _ = env_test.reset()
+        state, _ = env_test.reset(options={"direzione":"destra"})
         score = 0
         step = 0
         done = False
@@ -158,6 +158,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
             
             done = terminated or truncated
             state = next_state
+            print(reward)
             score += reward
             step += 1
             
