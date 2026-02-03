@@ -65,7 +65,7 @@ def crea_matrice_distanze(percorsoFile, direzione):
         i[0]=i[0]+slider[0]
         i[1]=i[1]+slider[1]
         a[i[0],i[1]]=1
-    print(f"linea iniziale {index}")
+    #print(f"linea iniziale {index}")
 
     while len(index) != 0:
         i = index.pop(0)
