@@ -9,16 +9,17 @@ def argwhere(matrix, value):
   x_max,y_max=matrix.shape
   for x in range(x_max):
     for y in range(y_max):
-
+    #  print(f"CHHHHHHHH{matrix[x,y]}")
       if matrix[x,y] == value:
         l.append([x,y])
 
+  print(f"aaaaaaaaaaaaaaaaa{l}")
   return l
 
 
 def build_track(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
     df = pd.read_csv(fileName, header=None, sep=',')
-    df = df.astype(int)
+    df = df.astype(float)
     matrice_circuito = df.to_numpy()
     print(f"Dimensioni matrice:{matrice_circuito.shape}")
     return matrice_circuito
@@ -34,13 +35,13 @@ def count_numpy_list(list_numpy, param):
 def crea_matrice_distanze(percorsoFile, direzione):
     df = pd.read_csv(percorsoFile, sep = ',', header = None)
     matrice_distanze = df.to_numpy().copy()
-    traguardo = argwhere(matrice_distanze,2)
+    traguardo = argwhere(matrice_distanze,0.3)
 
     larghezza, altezza=matrice_distanze.shape
 
     for x in range(larghezza):
         for y in range(altezza):
-            if matrice_distanze[x,y] != -1:
+            if matrice_distanze[x,y] != 0.0:
                 matrice_distanze[x,y] = -2
 
     a = matrice_distanze

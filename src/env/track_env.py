@@ -25,8 +25,9 @@ class TrackEnv(gym.Env):
         self.road_width = 5
         self.trajectory = list()
 
-        coordinates = np.argwhere(self.matrix == 2)
+        coordinates = argwhere(self.matrix, 0.3)
         self._target_location = np.array(coordinates, dtype=np.int32)
+        print(f"{coordinates}")
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
         #self._agent_velocity = 1
 
@@ -42,10 +43,10 @@ class TrackEnv(gym.Env):
         self.observation_space = gym.spaces.Dict({  #i dict servono per spazi eterogenei
                 # 1. La sottomatrice locale (come prima)
                 "agent_view": gym.spaces.Box( #i box servono per spazi omogenei
-                    low=-2,
-                    high=2,
+                    low=-0.1,
+                    high=0.3,
                     shape=(self.view_size, self.view_size),
-                    dtype=np.int8
+                    dtype=np.float32
                 )
                 #,
 
@@ -94,7 +95,7 @@ class TrackEnv(gym.Env):
         view_matrix = np.ones(shape=(self.view_size, self.view_size))
         # inizializzo tutte le celle viste dal pilota come non esistenti
         for i in range(self.view_size):
-            view_matrix[i]=view_matrix[i]*-2
+            view_matrix[i]=view_matrix[i]*-0.1
         #indice della prima cella (top-left) della matrice della vista pilota nella matrice grande
         tl_x = self._agent_location[0] - view_padding
         tl_y = self._agent_location[1] - view_padding
@@ -143,7 +144,7 @@ class TrackEnv(gym.Env):
 
         self._progresso = 0
 
-        coordinates = np.argwhere(self.matrix == 2)
+        coordinates = np.argwhere(self.matrix == 0.3)
 
         #da cambiare
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype = np.int32)
@@ -187,7 +188,7 @@ class TrackEnv(gym.Env):
         quindi aggiungerei un
         '''
 
-        if self.matrix[self._agent_location[0],self._agent_location[1]] == -1:
+        if self.matrix[self._agent_location[0],self._agent_location[1]] == 0.0:
             reward = -1000
             truncated = True
     
@@ -271,11 +272,11 @@ class TrackEnv(gym.Env):
                 
                 # Determina il colore in base al valore nella matrice
                 color = None
-                if val == 2:
+                if val == 0.3:
                     color = (112, 255, 160)  # Azzurrino per il traguardo
-                elif val == 0:                
+                elif val == 0.1:                
                     color= (255,255,255)     # Bianco per i cordoli
-                elif val == 1:
+                elif val == 0.2:
                     color = (128, 128, 128)  # Grigio per la strada
                 else:
                     color = (34, 139, 34)    # Verde scuro per fuori strada (-1, -2)
