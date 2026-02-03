@@ -163,77 +163,43 @@ class TrackEnv(gym.Env):
         # Update agent position, ensuring it stays within grid bounds
         # np.clip prevents the agent from walking off the edge
         self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
-
-
-        self.trajectory.append(self._agent_location)
-        # Check if agent reached the target
         terminated=False
-        #for x in self._target_location:
-        #   if np.array_equal(x, self._agent_location):
-        #       print("--------------------")
-        #       terminated = True
+        truncated=False
+        
+        self.trajectory.append(self._agent_location)
+            # Check if agent reached the target
+        reward = 0
+        for x in self._target_location:
+            if np.array_equal(x, self._agent_location):
+                if self._progresso ==7:
+                    reward = 10000
+                else:
+                    reward=-10000     
+                    
+                terminated = True              
+                
+        
 
-            # We don't use truncation in this simple environment
-            # (could add a step limit here if desired)
-        truncated = False
-
-
-    # traguardo si attiva quando tutti i checkpoint sono stati traversati
-    # se il tragurdo è traversato prima gli diamo un reward negativo assurdo
-
-
-        # da aggingere logica reward negativo fuori strada
-        '''stavo pensando se invece non é meglio terminare la simulazione se va fuori. Altrimenti se la continuiamo lui raccoglie dati su come guidare
-        fuori dal tracciato e nella migliore delle ipotesi al massimo imparerebbe come rientrare in pista. Solo che il nostro obiettivo é che non esca proprio
-        quindi aggiungerei un
-        '''
-
-        if self.matrix[self._agent_location[0],self._agent_location[1]] == 0.0:
-            reward = -1000
-            truncated = True
-    
-        else:
-            # Default small negative step penalty
-            reward = -1
-
-            # Safely get the next checkpoint list (may be empty or missing)
-            checkpoint_key = f"checkpoint_{self._progresso+1}"
-            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward = 1000
-                    self._progresso = self._progresso + 1
-                    break
+        if not terminated:
+            if self.matrix[self._agent_location[0],self._agent_location[1]] == 0.0:
+                reward = -10000
+                truncated = True
+            
+            else:
+                # Default small negative step penalty
+                reward = -(self.distance_matrix.max() - self.distance_matrix[self._agent_location[0],self._agent_location[1]])
 
 
-        '''
-        #1. reward = -1 costante + bonus checkpoint
+                    # Safely get the next checkpoint list (may be empty or missing)
+                checkpoint_key = f"checkpoint_{self._progresso+1}"
+                checkpoint_list = self._checkpoints.get(checkpoint_key, [])
 
-        checkpoint pensavo di rappresentarlo con un dizionario {id_numerico: [stato, [riga1, colonna1], [riga2, colonna2], [riga3, colonna3]...]}
-        dove stato indica se il checkpoint é 0 = da prendere, 1 = giá preso e 2 = attivo (se li vogliamo attivare sequenzialmente come avevamo detto)
+                for x in checkpoint_list:
+                    if np.array_equal(self._agent_location, x):
+                        reward = 10000
+                        self._progresso = self._progresso + 1
+                        break
 
-        if checkpoint_taken(self._agent_location, checkpoint_list) == 2: < metodo da scrivere, prende la lista di checkpoint e controlla se l'agente si trova
-                                                                    sopra checkpoint attivo, ritorna 2 se tutto OK, 1 se passa su checkpoint giá preso, 0 altrimenti
-        reward = 10
-        else:
-        reward = -1
-        _______________________________________________________________________________________________
-
-        #2. reward = -(distanza_massima - distanza) costante checkpoint 2 volte -> reward negativo
-
-            reward = -(self.distance_matrix.max() - self.distance_matrix[self._agent_location[0],self._agent_location[1]])
-            if checkpoint_taken(self._agent_location, checkpoint_list) == 1:
-            reward = -5
-
-
-
-
-
-
-        # reward = -( numero_reward_traguardo - distnza) costante + logica checkpoint
-        # reward =
-        '''
         observation = self._get_obs()
         info = self._get_info()
 
