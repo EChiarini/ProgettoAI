@@ -271,6 +271,14 @@ class TrackEnv(gym.Env):
                 else:
                     color = (34, 139, 34)    # Verde scuro per fuori strada (-1, -2)
 
+
+                for key,value in self._checkpoints.items():
+                    for coord in value:
+                        if coord[0] == r and coord[1] == c:
+                            color = (236,255,51)
+                        
+
+
                 if color:
                     pygame.draw.rect(
                         canvas,
