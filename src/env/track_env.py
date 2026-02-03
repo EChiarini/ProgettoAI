@@ -146,9 +146,23 @@ class TrackEnv(gym.Env):
 
         coordinates = np.argwhere(self.matrix == 0.3)
 
+        slider = [0,0]
+        match options["direzione"]:
+            case "destra":
+                slider=[0,1]
+            case "sinistra":
+                slider=[0,-1]
+            case "basso":
+                slider=[1,0]
+            case "alto":
+                slider=[-1,0]
+            case _:
+                slider=[0,0]
+
         #da cambiare
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype = np.int32)
-
+        self._agent_location[0] = self._agent_location[0] + slider[0]
+        self._agent_location[1] = self._agent_location[1] + slider[1]
 
         observation = self._get_obs()
         info = self._get_info()
@@ -156,13 +170,18 @@ class TrackEnv(gym.Env):
 
 
     def step(self, action):
+        
+
 
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
 
+        old_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+
         # Update agent position, ensuring it stays within grid bounds
         # np.clip prevents the agent from walking off the edge
         self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
+
         terminated=False
         truncated=False
         
@@ -172,34 +191,39 @@ class TrackEnv(gym.Env):
         for x in self._target_location:
             if np.array_equal(x, self._agent_location):
                 if self._progresso ==7:
-                    reward = 10000
+                    reward = 1000
                 else:
-                    reward=-10000     
+                    reward=-1000  
                     
                 terminated = True              
                 
-        
+        if self.matrix[self._agent_location[0],self._agent_location[1]] == 0.0:
+            reward = -1000
+            terminated = True
+
 
         if not terminated:
-            if self.matrix[self._agent_location[0],self._agent_location[1]] == 0.0:
-                reward = -10000
-                truncated = True
             
+            checkpoint_key = f"checkpoint_{self._progresso+1}"
+            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
+
+            for x in checkpoint_list:
+                if np.array_equal(self._agent_location, x):
+                    reward = 1000
+                    self._progresso = self._progresso + 1
+                    break    
+
+
+            new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+
+            delta_distance = new_agent_distance - old_agent_distance
+
+            if delta_distance > 0:
+                reward = new_agent_distance
             else:
-                # Default small negative step penalty
-                reward = -(self.distance_matrix.max() - self.distance_matrix[self._agent_location[0],self._agent_location[1]])
+                reward = -(new_agent_distance+1)  
 
-
-                    # Safely get the next checkpoint list (may be empty or missing)
-                checkpoint_key = f"checkpoint_{self._progresso+1}"
-                checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-                for x in checkpoint_list:
-                    if np.array_equal(self._agent_location, x):
-                        reward = 10000
-                        self._progresso = self._progresso + 1
-                        break
-
+        
         observation = self._get_obs()
         info = self._get_info()
 
