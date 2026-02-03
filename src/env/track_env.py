@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 import pygame
 import os
-from .track_utils import build_track, crea_matrice_distanze, argwhere, count_numpy_list
+from .track_utils import build_track, crea_matrice_distanze, argwhere
 
 class TrackEnv(gym.Env):
 

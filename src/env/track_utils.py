@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import copy
 import os
 from pathlib import Path
@@ -22,14 +21,6 @@ def build_track(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
     matrice_circuito = df.to_numpy()
     print(f"Dimensioni matrice:{matrice_circuito.shape}")
     return matrice_circuito
-
-def count_numpy_list(list_numpy, param):
-    cont = 0
-    for x in list_numpy:
-        if x[0] == param[0] and x[1] == param [1]:
-            cont = cont + 1
-
-    return cont
 
 def crea_matrice_distanze(percorsoFile, direzione):
     df = pd.read_csv(percorsoFile, sep = ',', header = None)

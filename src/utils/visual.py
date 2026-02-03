@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 
 def save_training_plot(scores, filename="training_plot.png", window_size=50):
     """
