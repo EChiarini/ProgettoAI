@@ -290,9 +290,18 @@ class TrackEnv(gym.Env):
                             pix_square_size,
                         ),
                     )
+        if len(self.trajectory) > 1:
 
-        # --- DISEGNO DELL'AGENTE ---
-        # L'agente è un cerchio blu -> NO
+            points = []
+            for pos in self.trajectory:
+
+                x = (pos[1] + 0.5) * pix_square_size
+                y = (pos[0] + 0.5) * pix_square_size
+                points.append((x, y))
+
+
+            pygame.draw.lines(canvas, (0, 0, 255), False, points, 3)
+
         pygame.draw.circle(
             canvas,
             (255, 0, 0), # Rosso
