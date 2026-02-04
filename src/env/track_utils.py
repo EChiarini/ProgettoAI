@@ -90,8 +90,10 @@ def crea_matrice_distanze(percorsoFile, direzione):
     df = pd.DataFrame(a)
 
     # 3. Salviamo in CSV
-    Path("../data/track_distance/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
-    nome_circuito = percorsoFile.split("/")[-1].split(".")[0]
-    df.to_csv(f'../data/track_distance/{nome_circuito}_distance.csv', index=False, header=False)
+    output_dir = Path("../data/track_distance/")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    nome_circuito = Path(percorsoFile).stem
+    df.to_csv(output_dir / f"{nome_circuito}_distance.csv", index=False, header=False)
 
     return a
