@@ -48,7 +48,7 @@ def run_training(number_episodes):
     loop = tqdm(range(number_episodes))
 
     for i_episode in loop:
-        state, _ = env.reset()
+        state, _ = env.reset(options={"direzione":"destra"})
         score = 0 # Punteggio dell'episodio corrente
         step_count = 0
 
@@ -148,7 +148,7 @@ def run_testing(model_path, num_episodes=DEFAULT_TEST_EPISODES, delay=DEFAULT_TE
 
     # --- CICLO DI TEST ---
     for i in range(num_episodes):
-        state, _ = env_test.reset()
+        state, _ = env_test.reset(options={"direzione":"destra"})
         score = 0
         step = 0
         done = False
