@@ -83,6 +83,8 @@ class TrackEnv(gym.Env):
 
         self._progresso = 0
 
+        self._tempo_passato = 0
+
 
     def _get_obs(self):
         view_padding = self.view_size // 2
@@ -138,6 +140,8 @@ class TrackEnv(gym.Env):
 
         super().reset(seed=seed)
 
+        self._tempo_passato = 0
+
         # self._agent_direction = math.pi
 
         #self._agent_velocity = 1
@@ -172,7 +176,6 @@ class TrackEnv(gym.Env):
     def step(self, action):
         
 
-
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
 
@@ -181,6 +184,8 @@ class TrackEnv(gym.Env):
         # Update agent position, ensuring it stays within grid bounds
         # np.clip prevents the agent from walking off the edge
         self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
+
+        self._tempo_passato = self._tempo_passato + 1
 
         terminated=False
         truncated=False
@@ -202,26 +207,36 @@ class TrackEnv(gym.Env):
             terminated = True
 
 
-        if not terminated:    
+        if not terminated:
+            
+            checkpoint_key = f"checkpoint_{self._progresso+1}"
+            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
 
+            for x in checkpoint_list:
+                if np.array_equal(self._agent_location, x):
+                    reward = 1000 - self._tempo_passato
+                    self._progresso = self._progresso + 1
+                    self._tempo_passato = 0
+
+                    observation = self._get_obs()
+                    info = self._get_info()
+
+                    return observation, reward, terminated, truncated, info   
+
+            last_five = self.trajectory[-5:]
+
+            if any(np.array_equal(self.agent_location,pos) for pos in last_five):
+                
+            
 
             new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
 
             delta_distance = new_agent_distance - old_agent_distance
 
             if delta_distance > 0:
-                reward = new_agent_distance
+                reward = new_agent_distance 
             else:
-                reward = -(new_agent_distance+1)  
-
-            checkpoint_key = f"checkpoint_{self._progresso+1}"
-            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward = 1000
-                    self._progresso = self._progresso + 1
-                    break
+                reward = -2*(new_agent_distance+1)
 
         
         observation = self._get_obs()
