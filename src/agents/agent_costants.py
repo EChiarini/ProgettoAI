@@ -7,3 +7,8 @@ EPSILON_START = 1.0
 EPSILON_MIN = 0.01
 EPSILON_DECAY_PORTION = 0.5
 TARGET_UPDATE_EVERY = 4
+EPSYLON_TYPE = {
+    1: "lineare",
+    2: "esponenziale"
+}
+EPSYLON_IS = 1

@@ -72,8 +72,12 @@ class Agent:
 
 
     def update_epsilon(self):
-        self.epsilon = max(self.epsilon_min, self.epsilon - self.epsilon_decay)
-        return self.epsilon
+        eps_type = EPSYLON_TYPE[EPSYLON_IS]
+
+        match eps_type:
+            case "lineare": self.epsilon = max(self.epsilon_min, self.epsilon - self.epsilon_decay)
+            case "esponenziale": self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+            case _: raise ValueError(f"EPSYLON_TYPE non valido: {eps_type}")
 
 
     def select_action(self, state):
