@@ -17,6 +17,8 @@ from env.track_utils import salva_heatmap_csv, salva_heatmap_immagine
 from utils.report_generator import genera_report
 import agents.agent_costants  as agent_costants
 import env.track_costants as track_costants
+from agents.network import Network
+import inspect
  
 def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
@@ -113,10 +115,18 @@ def run_training(number_episodes):
 
     grafico_path = os.path.join(os.getcwd(), "results", "grafico_finale.png")
     heatmap_path = os.path.join(os.getcwd(), "results", "heatmap_finale.png")
-
+    source_code_step = inspect.getsource(TrackEnv.step)
     try:
             # Passiamo agent_costants e track_costants come argomenti!
-        genera_report(args.ep, grafico_path, heatmap_path, agent_costants, track_costants)
+        genera_report(
+                args.ep, 
+                grafico_path, 
+                heatmap_path, 
+                agent_costants, 
+                track_costants,
+                Network,          
+                source_code_step
+            )
     except Exception as e:
         print(f"Errore generazione report: {e}")
         import traceback
