@@ -14,8 +14,10 @@ from main_costants import *
 from env.track_costants import VIEW_SIZE
 
 from env.track_utils import salva_heatmap_csv, salva_heatmap_immagine
-
-
+from utils.report_generator import genera_report
+import agents.agent_costants  as agent_costants
+import env.track_costants as track_costants
+ 
 def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
     state_shape = env.observation_space["agent_view"].shape
@@ -108,6 +110,17 @@ def run_training(number_episodes):
     env.trajectory_heat_map, 
     "results/heatmap_finale.png", 
     env.matrix)
+
+    grafico_path = os.path.join(os.getcwd(), "results", "grafico_finale.png")
+    heatmap_path = os.path.join(os.getcwd(), "results", "heatmap_finale.png")
+
+    try:
+            # Passiamo agent_costants e track_costants come argomenti!
+        genera_report(args.ep, grafico_path, heatmap_path, agent_costants, track_costants)
+    except Exception as e:
+        print(f"Errore generazione report: {e}")
+        import traceback
+        traceback.print_exc() # Ti stampa l'errore completo se fallisce
 
     env.close()
 
