@@ -224,13 +224,7 @@ class TrackEnv(gym.Env):
 
                     return observation, reward, terminated, truncated, info   
 
-            last_five = self.trajectory[-5:]
-
-            if any(np.array_equal(self.agent_location,pos) for pos in last_five):
-                
-            
-
-                new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+            new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
 
             delta_distance = new_agent_distance - old_agent_distance
 
