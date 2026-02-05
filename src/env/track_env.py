@@ -202,16 +202,7 @@ class TrackEnv(gym.Env):
             terminated = True
 
 
-        if not terminated:
-            
-            checkpoint_key = f"checkpoint_{self._progresso+1}"
-            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward = 1000
-                    self._progresso = self._progresso + 1
-                    break    
+        if not terminated:    
 
 
             new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
@@ -222,6 +213,15 @@ class TrackEnv(gym.Env):
                 reward = new_agent_distance
             else:
                 reward = -(new_agent_distance+1)  
+
+            checkpoint_key = f"checkpoint_{self._progresso+1}"
+            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
+
+            for x in checkpoint_list:
+                if np.array_equal(self._agent_location, x):
+                    reward = 1000
+                    self._progresso = self._progresso + 1
+                    break
 
         
         observation = self._get_obs()
