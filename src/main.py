@@ -10,6 +10,8 @@ from env.track_env import TrackEnv
 from agents.agent import Agent
 from utils.visual import save_training_plot
 from utils import DEVICE
+from main_costants import *
+from env.track_costants import VIEW_SIZE
 
 def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
@@ -21,11 +23,14 @@ def run_training(number_episodes):
     print('State size: ', state_size)
     print('Number of actions: ', number_actions)
 
-    Path("../").mkdir(parents=True, exist_ok=True)
-    Path("../results/").mkdir(parents=True, exist_ok=True)
+    models_dir = Path("models/checkpoints")
+    results_dir = Path("results")
+
+    models_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
 
 
-    step_limit = 1000
+    step_limit = DEFAULT_TRAIN_EPISODES
     step_count=0
 
     pilota = Agent(state_size, number_actions, number_episodes)
@@ -69,7 +74,7 @@ def run_training(number_episodes):
         # Salviamo i punteggi
         scores.append(score)
         scores_window.append(score)
-        if len(scores_window) > 100: scores_window.pop(0) # Teniamo solo gli ultimi 100
+        if len(scores_window) > SCORES_WINDOW_SIZE: scores_window.pop(0) # Teniamo solo gli ultimi 100
         avg_score = np.mean(scores_window)
 
         # Aggiorniamo la barra di caricamento con le info utili
@@ -77,21 +82,23 @@ def run_training(number_episodes):
 
 
         # Salva modello il migliore
-        if avg_score > best_avg_score and len(scores_window) >= 100:
+        if avg_score > best_avg_score and len(scores_window) >= SCORES_WINDOW_SIZE:
             best_avg_score = avg_score
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/best_model.pth')
+            torch.save(pilota.q_net.state_dict(), models_dir / DEFAULT_MODEL_FILENAME)
 
         # Salviamo il modello ogni 100 episodi
-        if (i_episode + 1) % 100 == 0:
-            torch.save(pilota.q_net.state_dict(), os.getcwd() + f'/cp_{i_episode+1}.pth')
+        if (i_episode + 1) % SAVE_CHECKPOINT_EVERY == 0:
+            torch.save(pilota.q_net.state_dict(), models_dir / f"cp_{i_episode+1}.pth")
+
 
     # Salva grafico
-    save_training_plot(scores, filename = os.getcwd() + "/results/grafico_finale.png")
+    save_training_plot(scores, filename = results_dir / DEFAULT_GRAPH_FILENAME)
+
 
     env.close()
 
 
-def run_testing(model_path, num_episodes=5, delay=0.1):
+def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
     """
     Carica un modello addestrato e lo visualizza in azione.
     
@@ -117,7 +124,7 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     #    Nota: view_size deve essere uguale a quello usato in training (7)
     env_test = TrackEnv(render_mode="human")
     
-    view_size = 7 
+    view_size = VIEW_SIZE
     action_size = env_test.action_space.n
 
     # 3. Istanzia l'agente (la struttura deve essere IDENTICA a quella del training)
@@ -135,45 +142,41 @@ def run_testing(model_path, num_episodes=5, delay=0.1):
     # 5. Imposta Epsilon a 0 -> Solo sfruttamento (Exploitation), niente esplorazione
     pilota_test.epsilon = 0.0
 
-    step_limit = 1000
+    step_limit = STEP_LIMIT
 
     # --- CICLO DI TEST ---
-    for i in range(num_episodes):
-        state, _ = env_test.reset(options={"direzione":"destra"})
-        score = 0
-        step = 0
-        done = False
+    state, _ = env_test.reset(options={"direzione":"destra"})
+    score = 0
+    step = 0
+    done = False
         
-        print(f"\n--- Inizio Episodio di Test {i+1} ---")
+    while not done:
+        # Renderizza la scena
+        env_test.render()
         
-        while not done:
-            # Renderizza la scena
-            env_test.render()
-            
-            # Scegli l'azione (sarà sempre la migliore secondo la rete)
-            action = pilota_test.select_action(state)
-            
-            # Esegui l'azione
-            next_state, reward, terminated, truncated, _ = env_test.step(action)
-            
-            done = terminated or truncated
-            state = next_state
-            print(reward)
-            score += reward
-            step += 1
-            
-            # Rallenta un po' per permettere all'occhio umano di seguire
-            time.sleep(delay)
-            
-            # Sicurezza per evitare loop infiniti se l'agente si blocca
-            if step > step_limit:
-                print("Loop troppo lungo, interrompo episodio.")
-                break
+        # Scegli l'azione (sarà sempre la migliore secondo la rete)
+        action = pilota_test.select_action(state)
+        
+        # Esegui l'azione
+        next_state, reward, terminated, truncated, _ = env_test.step(action)
+        
+        done = terminated or truncated
+        state = next_state
+        print(reward)
+        score += reward
+        step += 1
+        
+        # Rallenta un po' per permettere all'occhio umano di seguire
+        time.sleep(delay)
+        
+        # Sicurezza per evitare loop infiniti se l'agente si blocca
+        if step > step_limit:
+            print("Loop troppo lungo, interrompo episodio.")
+            break
 
-        print(f"Episodio {i+1} terminato. Punteggio Totale: {score:.2f}")
+    print(f"Punteggio Totale: {score:.2f}")
 
     env_test.close()
-    print("Test completato.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

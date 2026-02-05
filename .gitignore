@@ -21,6 +21,6 @@ Gemfile.lock
 data/track_distance/
 models/checkpoints/
 results/
-src/agents/__pycache__/
-src/env/__pycache__/
-src/utils/__pycache__/
+src/agents/__pycache__
+src/env/__pycache__
+src/utils/__pycache__

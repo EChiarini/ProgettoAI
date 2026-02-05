@@ -7,9 +7,11 @@ from collections import deque
 from .network import Network
 from utils import DEVICE
 
+from .agent_costants import *
+
 class ReplayBuffer:
 
-    def __init__(self, capacity, batch_size, seed=42):
+    def __init__(self, capacity, batch_size, seed=DEFAULT_SEED):
         self.memory = deque(maxlen=capacity)
         self.batch_size = batch_size
         self.seed = random.seed(seed)
@@ -32,10 +34,7 @@ class ReplayBuffer:
 
 class Agent:
 
-    def __init__(self, view_size, action_size, number_episodes, seed=42):
-        learning_rate = 5e-3
-        minibatch_size = 100
-        replay_buffer_size = int(1e5)
+    def __init__(self, view_size, action_size, number_episodes, seed=DEFAULT_SEED):
 
         self.action_size = action_size
         self.view_size = view_size
@@ -49,13 +48,13 @@ class Agent:
         self.target_net.load_state_dict(self.q_net.state_dict())
         self.target_net.eval()
         
-        self.optimizer = optim.Adam(self.q_net.parameters(), lr=learning_rate)
-        self.memory = ReplayBuffer(capacity=replay_buffer_size, batch_size=minibatch_size, seed=seed)
+        self.optimizer = optim.Adam(self.q_net.parameters(), lr=LEARNING_RATE)
+        self.memory = ReplayBuffer(capacity=REPLAY_BUFFER_SIZE, batch_size=MINIBATCH_SIZE, seed=seed)
         
-        self.gamma = 0.99   # discount factor
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 1/(number_episodes*0.5)
+        self.gamma = DISCOUNT_FACTOR
+        self.epsilon = EPSILON_START
+        self.epsilon_min = EPSILON_MIN
+        self.epsilon_decay = 1/(number_episodes*EPSILON_DECAY_PORTION)
         self.t_step = 0
 
     def _preprocess_state(self, state_dict):
@@ -99,7 +98,7 @@ class Agent:
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
         
-        self.t_step = (self.t_step + 1) % 4
+        self.t_step = (self.t_step + 1) % TARGET_UPDATE_EVERY
         if self.t_step == 0:
             if len(self.memory) > self.memory.batch_size:
                 self.learn()

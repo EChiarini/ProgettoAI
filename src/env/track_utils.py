@@ -3,6 +3,7 @@ import numpy as np
 import copy
 import os
 from pathlib import Path
+from .track_costants import get_default_track_path
 
 def argwhere(matrix, value):
   l = list()
@@ -16,7 +17,7 @@ def argwhere(matrix, value):
   return l
 
 
-def build_track(fileName = os.getcwd() + "/data/tracks/track_imola.csv"):
+def build_track(fileName = get_default_track_path()):
     df = pd.read_csv(fileName, header=None, sep=',')
     df = df.astype(float)
     matrice_circuito = df.to_numpy()
@@ -91,9 +92,10 @@ def crea_matrice_distanze(percorsoFile, direzione):
     # 2. Convertiamo in DataFrame
     df = pd.DataFrame(a)
 
-    # 3. Salviamo in CSV
-    Path("../data/track_distance/").mkdir(parents=True, exist_ok=True) # crea la cartella se non esiste, evita errore
-    nome_circuito = percorsoFile.split("/")[-1].split(".")[0]
-    df.to_csv(f'../data/track_distance/{nome_circuito}_distance.csv', index=False, header=False)
+    out_dir = Path("../data/track_distance/")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    nome_circuito = Path(percorsoFile).stem
+    df.to_csv(out_dir / f"{nome_circuito}_distance.csv", index=False, header=False)
 
     return a
