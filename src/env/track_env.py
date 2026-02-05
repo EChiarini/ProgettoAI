@@ -25,6 +25,7 @@ class TrackEnv(gym.Env):
         self.view_size = VIEW_SIZE
         self.road_width = ROAD_WIDTH
         self.trajectory = list()
+        self.trajectory_heat_map = dict()
 
         coordinates = argwhere(self.matrix, TRACK_FINISH_VALUE)
         self._target_location = np.array(coordinates, dtype=np.int32)
@@ -187,6 +188,15 @@ class TrackEnv(gym.Env):
         self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
 
         self._tempo_passato = self._tempo_passato + 1
+
+
+        pos_tuple = tuple(self._agent_location)
+
+
+        if pos_tuple not in self.trajectory_heat_map:  
+            self.trajectory_heat_map[pos_tuple] = 1
+        else:
+            self.trajectory_heat_map[pos_tuple] += 1
 
         terminated=False
         truncated=False

@@ -13,6 +13,9 @@ from utils import DEVICE
 from main_costants import *
 from env.track_costants import VIEW_SIZE
 
+from env.track_utils import salva_heatmap_csv, salva_heatmap_immagine
+
+
 def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
     state_shape = env.observation_space["agent_view"].shape
@@ -94,6 +97,17 @@ def run_training(number_episodes):
     # Salva grafico
     save_training_plot(scores, filename = results_dir / DEFAULT_GRAPH_FILENAME)
 
+    salva_heatmap_csv(
+    env.trajectory_heat_map,
+    "results/heatmap_finale.csv",
+    env.matrix.shape
+    )
+
+    print("Generazione grafico Heatmap...")
+    salva_heatmap_immagine(
+    env.trajectory_heat_map, 
+    "results/heatmap_finale.png", 
+    env.matrix)
 
     env.close()
 

@@ -4,6 +4,8 @@ import copy
 import os
 from pathlib import Path
 from .track_costants import get_default_track_path
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def argwhere(matrix, value):
   l = list()
@@ -99,3 +101,95 @@ def crea_matrice_distanze(percorsoFile, direzione):
     df.to_csv(out_dir / f"{nome_circuito}_distance.csv", index=False, header=False)
 
     return a
+
+
+
+
+
+def salva_heatmap_csv(heatmap_dict, filename, shape):
+    """
+    Converte il dizionario { (r, c): conteggio } in una matrice CSV.
+   
+    Args:
+        heatmap_dict: Il dizionario contenente le coordinate (tuple) e i valori.
+        filename: Il percorso dove salvare il file (es. "results/heatmap.csv").
+        shape: Le dimensioni della matrice originale (es. (60, 60)).
+    """
+    # 1. Crea una matrice vuota (tutti zeri) delle dimensioni della pista
+    grid = np.zeros(shape, dtype=int)
+
+
+    # 2. Riempie la matrice usando le coordinate del dizionario
+    for coord, count in heatmap_dict.items():
+        # Assumiamo coord sia una tupla (riga, colonna)
+        r, c = coord
+       
+        # Controllo di sicurezza per evitare crash se ci sono coordinate strane
+        if 0 <= r < shape[0] and 0 <= c < shape[1]:
+            grid[r, c] = count
+   
+    # 3. Crea la cartella se non esiste
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+
+    # 4. Salva su file
+    # fmt='%d' serve a salvare numeri interi (niente virgole decimali 0.00)
+    np.savetxt(filename, grid, delimiter=",", fmt='%d')
+   
+    print(f"✅ Heatmap salvata correttamente in: {filename}")
+
+
+
+def salva_heatmap_immagine(heatmap_dict, filename, track_matrix):
+    """
+    Genera una heatmap dove:
+    - I muri sono GRIGI.
+    - La strada non visitata è NERA/VIOLA SCURO.
+    - La strada visitata è COLORATA (Arancione/Giallo).
+    
+    Args:
+        heatmap_dict: Dizionario delle visite.
+        filename: Dove salvare l'immagine.
+        track_matrix: La matrice originale della pista (serve per trovare i muri).
+    """
+    shape = track_matrix.shape
+    
+    # 1. Crea la griglia delle visite (inizializzata a 0)
+    grid_visits = np.zeros(shape, dtype=float)
+    for coord, count in heatmap_dict.items():
+        r, c = coord
+        if 0 <= r < shape[0] and 0 <= c < shape[1]:
+            grid_visits[r, c] = count
+
+    # 2. Crea una "Maschera" per i muri
+    # True dove c'è il muro (valore 0 nella tua matrice), False dove c'è la strada
+    wall_mask = (track_matrix == 0.0)
+
+    # 3. Setup Grafico
+    plt.figure(figsize=(10, 10))
+    
+    # Impostiamo il colore di sfondo della figura a GRIGIO (questo sarà il colore dei muri)
+    ax = plt.axes()
+    ax.set_facecolor("lightgray") 
+
+    # 4. Disegna la Heatmap
+    # mask=wall_mask -> Dice a seaborn di rendere TRASPARENTI i pixel dei muri.
+    # Essendo trasparenti, si vedrà il grigio sotto.
+    sns.heatmap(grid_visits, 
+                cmap="inferno",       # Colori dal nero al giallo
+                mask=wall_mask,       # Nascondi i muri (mostra sfondo grigio)
+                cbar=True,            # Barra laterale
+                square=True, 
+                xticklabels=False, 
+                yticklabels=False,
+                linewidths=0.0,       # Nessuna linea tra i pixel per fluidità
+                vmin=0)               # Fissa il minimo a 0
+
+    plt.title("Heatmap: Grigio=Fuori | Nero=Pista ")
+    
+    # 5. Salva
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    plt.savefig(filename, dpi=150) # dpi più alto per qualità migliore
+    plt.close()
+    
+    print(f"🔥 Heatmap con bordi salvata in: {filename}")
