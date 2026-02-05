@@ -6,6 +6,9 @@ from pathlib import Path
 from .track_costants import get_default_track_path
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.colors import LogNorm
+import copy
+
 
 def argwhere(matrix, value):
   l = list()
@@ -141,55 +144,56 @@ def salva_heatmap_csv(heatmap_dict, filename, shape):
 
 
 def salva_heatmap_immagine(heatmap_dict, filename, track_matrix):
-    """
-    Genera una heatmap dove:
-    - I muri sono GRIGI.
-    - La strada non visitata è NERA/VIOLA SCURO.
-    - La strada visitata è COLORATA (Arancione/Giallo).
-    
-    Args:
-        heatmap_dict: Dizionario delle visite.
-        filename: Dove salvare l'immagine.
-        track_matrix: La matrice originale della pista (serve per trovare i muri).
-    """
     shape = track_matrix.shape
     
-    # 1. Crea la griglia delle visite (inizializzata a 0)
+    # 1. Crea la griglia delle visite
     grid_visits = np.zeros(shape, dtype=float)
     for coord, count in heatmap_dict.items():
         r, c = coord
         if 0 <= r < shape[0] and 0 <= c < shape[1]:
             grid_visits[r, c] = count
 
-    # 2. Crea una "Maschera" per i muri
-    # True dove c'è il muro (valore 0 nella tua matrice), False dove c'è la strada
+    # 2. TRUCCO PER LA SCALA LOGARITMICA:
+    # Sostituisci gli zeri (strada non visitata) con un numero piccolissimo (es. 0.01).
+    # In questo modo LogNorm non "esplode" e non li rende trasparenti.
+    grid_visits[grid_visits == 0] = 0.01
+
+    # 3. Crea la Maschera per i muri (True = Muro)
     wall_mask = (track_matrix == 0.0)
 
-    # 3. Setup Grafico
-    plt.figure(figsize=(10, 10))
-    
-    # Impostiamo il colore di sfondo della figura a GRIGIO (questo sarà il colore dei muri)
-    ax = plt.axes()
-    ax.set_facecolor("lightgray") 
+    # 4. Calcola il massimo per la scala
+    max_val = np.max(grid_visits)
+    if max_val < 1: max_val = 1
 
-    # 4. Disegna la Heatmap
-    # mask=wall_mask -> Dice a seaborn di rendere TRASPARENTI i pixel dei muri.
-    # Essendo trasparenti, si vedrà il grigio sotto.
+    # 5. Configura la Colormap Personalizzata
+    # Prendiamo "inferno" e impostiamo il colore per i valori "sotto il minimo" (under) a NERO.
+    my_cmap = copy.copy(plt.get_cmap("inferno"))
+    my_cmap.set_under('black') 
+
+    # 6. Setup Grafico
+    plt.figure(figsize=(10, 10))
+    ax = plt.axes()
+    ax.set_facecolor("lightgray") # I MURI mascherati mostreranno questo colore
+
+    # 7. Disegna
     sns.heatmap(grid_visits, 
-                cmap="inferno",       # Colori dal nero al giallo
-                mask=wall_mask,       # Nascondi i muri (mostra sfondo grigio)
-                cbar=True,            # Barra laterale
+                cmap=my_cmap,       
+                mask=wall_mask,         # I muri diventano trasparenti -> Si vede il Grigio sotto
+                cbar=True,            
                 square=True, 
                 xticklabels=False, 
                 yticklabels=False,
-                linewidths=0.0,       # Nessuna linea tra i pixel per fluidità
-                vmin=0)               # Fissa il minimo a 0
+                linewidths=0.0,
+                # Scala Logaritmica:
+                # vmin=1: Tutto ciò che è >= 1 usa la scala colori (Rosso/Giallo)
+                # Tutto ciò che è < 1 (il nostro 0.01) usa il colore "under" (Nero)
+                norm=LogNorm(vmin=1, vmax=max_val) 
+                )
 
-    plt.title("Heatmap: Grigio=Fuori | Nero=Pista ")
+    plt.title("Heatmap: Grigio=Muro | Nero=Non Visitato | Colori=Visitato")
     
-    # 5. Salva
     os.makedirs(os.path.dirname(filename), exist_ok=True)
-    plt.savefig(filename, dpi=150) # dpi più alto per qualità migliore
+    plt.savefig(filename, dpi=150)
     plt.close()
     
-    print(f"🔥 Heatmap con bordi salvata in: {filename}")
+    print(f"🔥 Heatmap Logaritmica (con bordi visibili) salvata in: {filename}")

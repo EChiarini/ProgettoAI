@@ -181,6 +181,9 @@ class TrackEnv(gym.Env):
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
 
+        trajectory_heat_map_single_episode = dict()
+
+
         old_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
 
         # Update agent position, ensuring it stays within grid bounds
@@ -197,6 +200,14 @@ class TrackEnv(gym.Env):
             self.trajectory_heat_map[pos_tuple] = 1
         else:
             self.trajectory_heat_map[pos_tuple] += 1
+
+
+        if pos_tuple not in trajectory_heat_map_single_episode:  
+            trajectory_heat_map_single_episode[pos_tuple] = 1
+            reward = 10
+        else:
+            trajectory_heat_map_single_episode[pos_tuple] += 1
+            reward = -1.5 * trajectory_heat_map_single_episode[pos_tuple] 
 
         terminated=False
         truncated=False
