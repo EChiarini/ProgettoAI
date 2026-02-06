@@ -8,7 +8,7 @@ TRACK_OFFROAD_VALUE = 0.0
 TRACK_UNKNOWN_VALUE = -0.1
 
 # Rendering
-RENDER_FPS = 10
+RENDER_FPS = 30 
 WINDOW_SIZE_PX = 800
 
 # Agent view / track parameters
@@ -39,3 +39,37 @@ DEFAULT_DISTANCE_DIRECTION = "destra"
 def get_default_track_path():
     return os.path.join(os.getcwd(), DEFAULT_TRACK_RELATIVE_PATH)
 
+
+# --- Visual Configuration (Mario Kart Style) ---
+COLOR_GRASS_MARIO = (0, 180, 0)        # Mario Green
+COLOR_GRASS_L = (0, 200, 0)
+COLOR_ROAD_MARIO = (120, 120, 120)     # Light Grey Road
+COLOR_ROAD_BORDER = (100, 100, 100)
+COLOR_KERB_1 = (255, 220, 0)           # Yellow
+COLOR_KERB_2 = (0, 100, 255)           # Blue
+COLOR_FINISH_CHECKER_1 = (255, 255, 255)
+COLOR_FINISH_CHECKER_2 = (0, 0, 0)
+
+# Items
+COLOR_BANANA = (255, 255, 0)
+COLOR_BANANA_SPOT = (140, 100, 0)
+COLOR_STAR = (255, 215, 0)
+COLOR_MYSTERY_BOX = (63, 224, 208)     # Turquoise
+
+# Decor
+COLOR_PIPE_GREEN = (0, 160, 0)
+COLOR_PIPE_L = (50, 200, 50)
+COLOR_MUSHROOM_CAP = (255, 0, 0)
+COLOR_MUSHROOM_WHITE = (255, 255, 255)
+COLOR_MUSHROOM_STEM = (255, 230, 200)
+
+# Kart
+COLOR_KART_BODY = (230, 20, 20)        # Red Mario Kart
+COLOR_KART_SEAT = (50, 50, 50)
+COLOR_KART_EXHAUST = (150, 150, 150)
+COLOR_DRIVER_HELMET = (230, 30, 30)    # Red Cap
+COLOR_DRIVER_SKIN = (255, 200, 150)
+
+# HUD
+COLOR_HUD_TEXT = (255, 255, 0)         # Arcade Yellow Text
+COLOR_HUD_STROKE = (0, 0, 0)
