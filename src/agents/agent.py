@@ -54,8 +54,18 @@ class Agent:
         self.gamma = DISCOUNT_FACTOR
         self.epsilon = EPSILON_START
         self.epsilon_min = EPSILON_MIN
-        self.epsilon_decay = 1/(number_episodes*EPSILON_DECAY_PORTION)
         self.t_step = 0
+
+        eps_type = EPSYLON_TYPE[EPSYLON_IS]
+
+        match eps_type:
+            case "lineare": 
+                self.epsilon_decay = 1/(number_episodes*EPSILON_DECAY_PORTION)
+            case "esponenziale": 
+                T = max(1, int(number_episodes * EPSILON_DECAY_PORTION))
+                self.epsilon_decay = (self.epsilon_min / self.epsilon) ** (1 / T)
+            case _: raise ValueError(f"EPSYLON_TYPE non valido: {eps_type}")
+
 
     def _preprocess_state(self, state_dict):
         """

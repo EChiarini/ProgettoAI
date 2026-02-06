@@ -30,11 +30,8 @@ def run_training(number_episodes):
     print('State size: ', state_size)
     print('Number of actions: ', number_actions)
 
-    models_dir = Path("models/checkpoints")
-    results_dir = Path("results")
-
-    models_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
+    CHECKPOINTS_PATH.mkdir(parents=True, exist_ok=True)
+    RESULTS_PATH.mkdir(parents=True, exist_ok=True)
 
 
     step_limit = DEFAULT_TRAIN_EPISODES
@@ -91,30 +88,30 @@ def run_training(number_episodes):
         # Salva modello il migliore
         if avg_score > best_avg_score and len(scores_window) >= SCORES_WINDOW_SIZE:
             best_avg_score = avg_score
-            torch.save(pilota.q_net.state_dict(), models_dir / DEFAULT_MODEL_FILENAME)
+            torch.save(pilota.q_net.state_dict(), CHECKPOINTS_PATH / DEFAULT_MODEL_FILENAME)
 
         # Salviamo il modello ogni 100 episodi
         if (i_episode + 1) % SAVE_CHECKPOINT_EVERY == 0:
-            torch.save(pilota.q_net.state_dict(), models_dir / f"cp_{i_episode+1}.pth")
+            torch.save(pilota.q_net.state_dict(), CHECKPOINTS_PATH / f"cp_{i_episode+1}.pth")
 
 
     # Salva grafico
-    save_training_plot(scores, filename = results_dir / DEFAULT_GRAPH_FILENAME)
+    save_training_plot(scores, filename = RESULTS_PATH / DEFAULT_GRAPH_FILENAME)
 
     salva_heatmap_csv(
     env.trajectory_heat_map,
-    "results/heatmap_finale.csv",
+    f"{RESULTS_PATH}/{REPORT_FILENAME}.csv",
     env.matrix.shape
     )
 
     print("Generazione grafico Heatmap...")
     salva_heatmap_immagine(
     env.trajectory_heat_map, 
-    "results/heatmap_finale.png", 
+    f"{RESULTS_PATH}/{REPORT_FILENAME}.png", 
     env.matrix)
 
-    grafico_path = os.path.join(os.getcwd(), "results", "grafico_finale.png")
-    heatmap_path = os.path.join(os.getcwd(), "results", "heatmap_finale.png")
+    grafico_path = os.path.join(os.getcwd(), RESULTS_PATH, DEFAULT_GRAPH_FILENAME)
+    heatmap_path = os.path.join(os.getcwd(), RESULTS_PATH, f"{REPORT_FILENAME}.png")
     source_code_step = inspect.getsource(TrackEnv.step)
     try:
             # Passiamo agent_costants e track_costants come argomenti!
@@ -144,12 +141,14 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
         num_episodes (int): Quanti episodi di test vuoi vedere.
         delay (float): Secondi di pausa tra un frame e l'altro (per rallentare l'azione).
     """
-    
+
     # 1. Risolvi il percorso del file modello (accetta path assoluti o solo il nome)
     if os.path.isabs(model_path):
         model_fullpath = model_path
     else:
-        model_fullpath = os.path.join(os.getcwd(), model_path)
+        model_fullpath = os.path.join(os.getcwd(), CHECKPOINTS_PATH, model_path)
+
+    print(model_fullpath)
 
     if not os.path.exists(model_fullpath):
         print(f"ERRORE: Il file '{model_fullpath}' non esiste.")
@@ -218,8 +217,8 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "test"])
-    parser.add_argument("--ep", type=int, default=1000, help="numero di episodi per il training (default: 10000)")
-    parser.add_argument("--mod", type=str, default="best_model.pth", help="file per il testing (default: best_model.pth)")
+    parser.add_argument("--ep", type=int, default=DEFAULT_TRAIN_EPISODES, help="numero di episodi per il training (default: 10000)")
+    parser.add_argument("--mod", type=str, default=DEFAULT_MODEL_FILENAME, help="file per il testing (default: best_model.pth)")
     args = parser.parse_args()
 
     if args.mode == "train":
