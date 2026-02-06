@@ -62,8 +62,8 @@ class Agent:
             case "lineare": 
                 self.epsilon_decay = 1/(number_episodes*EPSILON_DECAY_PORTION)
             case "esponenziale": 
-                T = int(number_episodes * EPSILON_DECAY_PORTION)
-                self.epsilon_decay = (EPSILON_MIN / EPSILON_START) ** (1 / T)
+                T = max(1, int(number_episodes * EPSILON_DECAY_PORTION))
+                self.epsilon_decay = (self.epsilon_min / self.epsilon) ** (1 / T)
             case _: raise ValueError(f"EPSYLON_TYPE non valido: {eps_type}")
 
 
