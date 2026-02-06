@@ -34,7 +34,7 @@ BACKWARD_PENALTY = 1
 DEFAULT_TRACK_FILENAME = "track_imola.csv"
 DEFAULT_TRACK_RELATIVE_PATH = os.path.join("data", "tracks", DEFAULT_TRACK_FILENAME)
 DEFAULT_DISTANCE_DIRECTION = "destra"
-
+DEFAULT_TRACK_MUSIC = "coconut_mall.mp3"
 
 def get_default_track_path():
     return os.path.join(os.getcwd(), DEFAULT_TRACK_RELATIVE_PATH)

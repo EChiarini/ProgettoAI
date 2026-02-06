@@ -264,7 +264,7 @@ class TrackEnv(gym.Env):
             # --- MUSIC INIT ---
             try:
                 pygame.mixer.init()
-                music_path = os.path.join("data", "music", "Coconut Mall - Mario Kart Wii OST.mp3")
+                music_path = os.path.join("data", "music", DEFAULT_TRACK_MUSIC)
                 if os.path.exists(music_path):
                     pygame.mixer.music.load(music_path)
                     pygame.mixer.music.play(-1) # Loop forever
