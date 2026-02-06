@@ -139,7 +139,7 @@ class TrackEnv(gym.Env):
     #con reset, rimettiamo il pilora nella posizione iniziale dal traguard
     # e ristabiliamo la sua direzione
     def reset(self, seed = None, options = None):
-
+        self.trajectory_heat_map_single_episode = dict()
         super().reset(seed=seed)
 
         self._tempo_passato = 0
@@ -177,11 +177,11 @@ class TrackEnv(gym.Env):
 
     def step(self, action):
         
-
+        reward = 0
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
 
-        trajectory_heat_map_single_episode = dict()
+        
 
 
         old_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
@@ -202,25 +202,25 @@ class TrackEnv(gym.Env):
             self.trajectory_heat_map[pos_tuple] += 1
 
 
-        if pos_tuple not in trajectory_heat_map_single_episode:  
-            trajectory_heat_map_single_episode[pos_tuple] = 1
-            reward = 10
+        if pos_tuple not in self.trajectory_heat_map_single_episode:  
+            self.trajectory_heat_map_single_episode[pos_tuple] = 1
+            reward += 0.1
         else:
-            trajectory_heat_map_single_episode[pos_tuple] += 1
-            reward = -1.5 * trajectory_heat_map_single_episode[pos_tuple] 
+            self.trajectory_heat_map_single_episode[pos_tuple] += 1
+            reward += REPEAT_PENALTY * self.trajectory_heat_map_single_episode[pos_tuple]
 
         terminated=False
         truncated=False
-        
+        reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
             # Check if agent reached the target
-        reward = 0
+        
         for x in self._target_location:
             if np.array_equal(x, self._agent_location):
                 if self._progresso == self.numero_checkpoints:
-                    reward = CHECKPOINT_REWARD
+                    reward += FINISH_REWARD
                 else:
-                    reward=-CHECKPOINT_REWARD  
+                    reward += -FINISH_REWARD  
                     
                 terminated = True              
                 
@@ -236,7 +236,7 @@ class TrackEnv(gym.Env):
 
             for x in checkpoint_list:
                 if np.array_equal(self._agent_location, x):
-                    reward = 1000 - self._tempo_passato
+                    reward += CHECKPOINT_REWARD
                     self._progresso = self._progresso + 1
                     self._tempo_passato = 0
 
@@ -250,9 +250,9 @@ class TrackEnv(gym.Env):
             delta_distance = new_agent_distance - old_agent_distance
 
             if delta_distance > 0:
-                reward = new_agent_distance 
+                reward += delta_distance 
             else:
-                reward = -2*(new_agent_distance+1)
+                reward += delta_distance * BACKWARD_PENALTY
 
         
         observation = self._get_obs()
