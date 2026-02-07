@@ -15,7 +15,9 @@ class TrackEnv(gym.Env):
         
         self.matrix = build_track()
         self.distance_matrix = crea_matrice_distanze(get_default_track_path(), "destra")
+
         
+
         self.render_mode = render_mode
         self.window_size = WINDOW_SIZE_PX
         self.window = None
@@ -33,6 +35,8 @@ class TrackEnv(gym.Env):
         coordinates = argwhere(self.matrix, TRACK_FINISH_VALUE)
         self._target_location = np.array(coordinates, dtype=np.int32)
         print(f"{coordinates}")
+
+
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
 
         self.action_space = gym.spaces.Discrete(4)
@@ -59,6 +63,7 @@ class TrackEnv(gym.Env):
         self.numero_checkpoints=NUM_CHECKPOINTS
 
         valore_checkpoint=self.distance_matrix.max()//self.numero_checkpoints
+
         for i in range(self.numero_checkpoints-1):
             coordinate_checkpoint=argwhere(self.distance_matrix, valore_checkpoint*(i+1))
             self._checkpoints[f"checkpoint_{i+1}"] = coordinate_checkpoint
@@ -68,6 +73,7 @@ class TrackEnv(gym.Env):
         self._global_time = 0 # Cumulative time
         self.trajectory_heat_map_single_episode = dict()
         self._drift_frames = 0 # Counter for drift effect
+     
 
 
     def _get_obs(self):
@@ -106,6 +112,7 @@ class TrackEnv(gym.Env):
         self.trajectory_heat_map_single_episode = dict()
         super().reset(seed=seed)
 
+
         self._tempo_passato = 0
         self._global_time = 0 # Reset global time on reset? Or keep it? Usually reset per episode.
         # User said "non si azzera più" (doesn't reset anymore). 
@@ -138,6 +145,8 @@ class TrackEnv(gym.Env):
 
         observation = self._get_obs()
         info = self._get_info()
+
+      
         return observation, info
 
 
@@ -145,6 +154,9 @@ class TrackEnv(gym.Env):
         reward = 0
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
+        
+        terminated = False
+        truncated = False
         
         # Drift logic: if direction changes, show smoke for 2 frames
         if action != self._last_action:
@@ -174,9 +186,13 @@ class TrackEnv(gym.Env):
         else:
             self.trajectory_heat_map_single_episode[pos_tuple] += 1
             reward += REPEAT_PENALTY * self.trajectory_heat_map_single_episode[pos_tuple]
+            if self.trajectory_heat_map_single_episode[pos_tuple] > 4: #evito che entri nel loop per piú di 4 volte ed evito quindi l'episodio termini solo per esaurimento passi 
 
-        terminated=False
-        truncated=False
+                truncated = True
+                return self._get_obs(), reward, terminated, truncated, self._get_info()
+            
+
+   
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
         
@@ -185,12 +201,14 @@ class TrackEnv(gym.Env):
                 if self._progresso == self.numero_checkpoints:
                     reward += FINISH_REWARD
                 else:
-                    reward += -FINISH_REWARD  
-                terminated = True              
+                    reward = -FINISH_REWARD
+                terminated = True
+                return self._get_obs(), reward, terminated, truncated, self._get_info()         
                 
         if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
             reward = OFFROAD_REWARD
             terminated = True
+            return self._get_obs(), reward, terminated, truncated, self._get_info()
 
 
         if not terminated:
@@ -206,6 +224,8 @@ class TrackEnv(gym.Env):
 
             new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
             delta_distance = new_agent_distance - old_agent_distance
+
+            
 
             if delta_distance > 0:
                 reward += delta_distance 

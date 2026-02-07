@@ -95,7 +95,14 @@ def crea_matrice_distanze(percorsoFile, direzione):
             index.append([i[0]+1,i[1]])
 
     # 2. Convertiamo in DataFrame
-    df = pd.DataFrame(a)
+    traguardo_np = np.array(traguardo)
+    righe = traguardo_np[:, 0]
+    cols = traguardo_np[:, 1]
+
+    # Ora applichiamo il valore massimo
+    valore_max = np.max(a) + 1
+    a[righe, cols] = valore_max
+    df = pd.DataFrame(a)   
 
     out_dir = Path("../data/track_distance/")
     out_dir.mkdir(parents=True, exist_ok=True)

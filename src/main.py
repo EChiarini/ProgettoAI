@@ -46,7 +46,7 @@ def run_training(number_episodes):
 
     # Loop principale
     loop = tqdm(range(number_episodes))
-
+    start = time.perf_counter()
     for i_episode in loop:
         state, _ = env.reset(options={"direzione":"destra"})
         score = 0 # Punteggio dell'episodio corrente
@@ -98,6 +98,19 @@ def run_training(number_episodes):
     # Salva grafico
     save_training_plot(scores, filename = RESULTS_PATH / DEFAULT_GRAPH_FILENAME)
 
+    end = time.perf_counter()
+
+    elapsed = end - start
+
+    ore = int(elapsed // 3600)
+    minuti = int((elapsed % 3600) // 60)
+    secondi = elapsed % 60
+
+    print(f"Tempo impiegato: {ore} h {minuti} m {secondi:.2f} s")
+
+    print(f"Punteggio Totale: {score:.2f}")
+
+
     salva_heatmap_csv(
     env.trajectory_heat_map,
     f"{RESULTS_PATH}/{REPORT_FILENAME}.csv",
@@ -113,21 +126,23 @@ def run_training(number_episodes):
     grafico_path = os.path.join(os.getcwd(), RESULTS_PATH, DEFAULT_GRAPH_FILENAME)
     heatmap_path = os.path.join(os.getcwd(), RESULTS_PATH, f"{REPORT_FILENAME}.png")
     source_code_step = inspect.getsource(TrackEnv.step)
-    try:
-            # Passiamo agent_costants e track_costants come argomenti!
-        genera_report(
-                args.ep, 
-                grafico_path, 
-                heatmap_path, 
-                agent_costants, 
-                track_costants,
-                Network,          
-                source_code_step
-            )
-    except Exception as e:
-        print(f"Errore generazione report: {e}")
-        import traceback
-        traceback.print_exc() # Ti stampa l'errore completo se fallisce
+    
+    if GEN_REPORT:
+        try:
+                # Passiamo agent_costants e track_costants come argomenti!
+            genera_report(
+                    args.ep, 
+                    grafico_path, 
+                    heatmap_path, 
+                    agent_costants, 
+                    track_costants,
+                    Network,          
+                    source_code_step
+                )
+        except Exception as e:
+            print(f"Errore generazione report: {e}")
+            import traceback
+            traceback.print_exc() # Ti stampa l'errore completo se fallisce
 
     env.close()
 
@@ -185,6 +200,9 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
     score = 0
     step = 0
     done = False
+
+    
+   
         
     while not done:
         # Renderizza la scena
@@ -204,13 +222,14 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
         
         # Rallenta un po' per permettere all'occhio umano di seguire
         time.sleep(delay)
+
         
         # Sicurezza per evitare loop infiniti se l'agente si blocca
         if step > step_limit:
             print("Loop troppo lungo, interrompo episodio.")
             break
 
-    print(f"Punteggio Totale: {score:.2f}")
+
 
     env_test.close()
 

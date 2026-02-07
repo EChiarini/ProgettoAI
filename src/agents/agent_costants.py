@@ -11,4 +11,4 @@ EPSYLON_TYPE = {
     1: "lineare",
     2: "esponenziale"
 }
-EPSYLON_IS = 1
+EPSYLON_IS = 2
