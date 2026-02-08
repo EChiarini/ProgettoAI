@@ -154,7 +154,8 @@ class TrackEnv(gym.Env):
         reward = 0
         size = self.matrix.shape[0]
         direction = self._action_to_direction[action]
-        
+
+
         terminated = False
         truncated = False
         
@@ -191,14 +192,14 @@ class TrackEnv(gym.Env):
                 truncated = True
                 return self._get_obs(), reward, terminated, truncated, self._get_info()
             
-
-   
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
         
         for x in self._target_location:
             if np.array_equal(x, self._agent_location):
-                if self._progresso == self.numero_checkpoints:
+                
+                if self._progresso == self.numero_checkpoints - 1: 
+                    
                     reward += FINISH_REWARD
                 else:
                     reward = -FINISH_REWARD
