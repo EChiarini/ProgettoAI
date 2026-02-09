@@ -106,7 +106,7 @@ def run_training(number_episodes):
     minuti = int((elapsed % 3600) // 60)
     secondi = elapsed % 60
 
-    print(f"Tempo impiegato: {ore} h {minuti} m {secondi:.2f} s")
+    training_time = f"Tempo impiegato: {ore}h {minuti}m {secondi:.2f}s"
 
     print(f"Punteggio Totale: {score:.2f}")
 
@@ -137,7 +137,8 @@ def run_training(number_episodes):
                     agent_costants, 
                     track_costants,
                     Network,          
-                    source_code_step
+                    source_code_step,
+                    training_time
                 )
         except Exception as e:
             print(f"Errore generazione report: {e}")
