@@ -67,5 +67,3 @@ Dopo il training vengono generati in `results/`:
 ## Documentazione
 
 - Relazione completa: `docs/Relazione.ipynb`
-
----
