@@ -2,7 +2,6 @@ from pathlib import Path
 
 DEFAULT_TRAIN_EPISODES = 1000
 DEFAULT_TEST_DELAY = 0.1
-DEFAULT_RESUME_TRAIN = False
 STEP_LIMIT = 1000
 SCORES_WINDOW_SIZE = 1000
 SAVE_CHECKPOINT_EVERY = 1000
@@ -11,6 +10,7 @@ DEFAULT_MODEL_FILENAME = "best_model.pth"
 DEFAULT_GRAPH_FILENAME = "grafico_finale.png"
 REPORT_FILENAME = "heatmap_finale"
 GEN_REPORT = True
+TRAINING_MODE = 1
 
 CHECKPOINTS_PATH = Path("models/checkpoints")
 RESULTS_PATH = Path("results")

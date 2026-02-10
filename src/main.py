@@ -20,7 +20,7 @@ import env.track_costants as track_costants
 from agents.network import Network
 import inspect
  
-def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAULT_MODEL_FILENAME):
+def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
     state_shape = env.observation_space["agent_view"].shape
 
@@ -39,27 +39,6 @@ def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAU
 
     pilota = Agent(state_size, number_actions, number_episodes)
 
-    if resume:
-        if os.path.isabs(model_path):
-            model_fullpath = model_path
-        else:
-            model_fullpath = os.path.join(os.getcwd(), CHECKPOINTS_PATH, model_path)
-
-        print(model_fullpath)
-
-        if not os.path.exists(model_fullpath):
-            print(f"ERRORE: Il file '{model_fullpath}' non esiste.")
-            return
-
-        print(f"Caricamento modello da: {model_fullpath}...")
-
-        state_dict = torch.load(model_fullpath, map_location=torch.device(DEVICE))
-        pilota.q_net.load_state_dict(state_dict)
-        
-        #pilota_test.q_net.eval() 
-
-    
-
     # Liste per tenere traccia dei punteggi
     scores = []
     scores_window = [] # Per la media mobile (es. ultimi 100 episodi)
@@ -68,6 +47,22 @@ def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAU
     # Loop principale
     loop = tqdm(range(number_episodes))
     start = time.perf_counter()
+
+    if TRAINING_MODE == 1:
+        print(f"--- FINE TUNING ATTIVATO ---")
+        search_path = Path("models/fine_tuning_model")
+        found_files = list(search_path.glob("*.pth"))
+
+        
+        if found_files:
+            model_path = str(found_files[0])
+            print(f"Trovato: {model_path}")
+            pilota.load_model(model_path)
+        else:
+            raise FileNotFoundError(f"Nessun file .pth trovato in {search_path}!")
+        
+
+
     for i_episode in loop:
         state, _ = env.reset(options={"direzione":"destra"})
         score = 0 # Punteggio dell'episodio corrente
@@ -127,7 +122,7 @@ def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAU
     minuti = int((elapsed % 3600) // 60)
     secondi = elapsed % 60
 
-    training_time = f"Tempo impiegato: {ore}h {minuti}m {secondi:.2f}s"
+    total_time = f"Tempo impiegato: {ore} h {minuti} m {secondi:.2f} s"
 
     print(f"Punteggio Totale: {score:.2f}")
 
@@ -159,7 +154,8 @@ def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAU
                     track_costants,
                     Network,          
                     source_code_step,
-                    training_time
+                    total_time, 
+                    TRAINING_MODE
                 )
         except Exception as e:
             print(f"Errore generazione report: {e}")
@@ -260,17 +256,11 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["train", "test"])
     parser.add_argument("--ep", type=int, default=DEFAULT_TRAIN_EPISODES, help="numero di episodi per il training (default: 10000)")
     parser.add_argument("--mod", type=str, default=DEFAULT_MODEL_FILENAME, help="file per il testing (default: best_model.pth)")
-    parser.add_argument("--res", type=bool, default=DEFAULT_RESUME_TRAIN, help ="il training riparte da un modello già esistente")
     args = parser.parse_args()
 
     if args.mode == "train":
-        if args.res :
-            mode = "resume"
-        else:
-            mode = "daZero"
-
-        print(f"training con {args.ep} episodi, in modalità {mode}")
-        run_training(args.ep, args.res)
+        print(f"training con {args.ep} episodi")
+        run_training(args.ep)
         
     elif args.mode == "test":
         print(f"testo con {args.mod}")

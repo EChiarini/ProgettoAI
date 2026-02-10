@@ -90,13 +90,20 @@ def analizza_architettura_da_codice(network_class):
     except Exception as e:
         return f"Errore analisi codice: {e}"
 
-def genera_report(num_episodi, path_grafico, path_heatmap, agent_conf, track_conf, network_class, source_code_step , time):
+def genera_report(num_episodi, path_grafico, path_heatmap, agent_conf, track_conf, network_class, source_code_step , time, t_mode):
     """
     Ora accetta 'network_class' (la classe pura, non istanziata)
     """
     save_dir = os.path.join(os.getcwd(), "results", "reports")
     filename = get_next_report_filename(save_dir)
     
+
+    mode =""
+    if t_mode:
+        mode = "MODE: Fine tuning"
+    else: 
+        mode = "MODE: Training "
+
     # --- ESTRAPOLIAMO LE INFO QUI ---
     network_info = analizza_architettura_da_codice(network_class)
     
@@ -107,7 +114,7 @@ def genera_report(num_episodi, path_grafico, path_heatmap, agent_conf, track_con
     pdf.add_page()
     pdf.set_font('Arial', '', 10)
     pdf.cell(0, 6, f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
-    pdf.cell(0, 6, f"Episodi Totali: {num_episodi}  {time}", ln=True)
+    pdf.cell(0, 6, f"Episodi Totali: {num_episodi}      {time}        {mode}", ln=True)
     pdf.ln(5)
 
     def stampa_tabella(titolo, data, r, g, b):

@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 import random
+import os
 import numpy as np
 import torch.nn.functional as F
 from collections import deque
@@ -146,3 +147,18 @@ class Agent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+
+    def load_model(self, file_path):
+        """
+        Carica i pesi di un modello pre-addestrato.
+        """
+        if os.path.isfile(file_path):
+
+            checkpoint = torch.load(file_path, map_location=DEVICE)
+            self.q_net.load_state_dict(checkpoint)
+            self.target_net.load_state_dict(self.q_net.state_dict())
+        
+            print(f"--- Modello caricato con successo da: {file_path} ---")
+        else:
+            print(f"ERRORE: File non trovato in {file_path}")
