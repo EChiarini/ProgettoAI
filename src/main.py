@@ -20,7 +20,7 @@ import env.track_costants as track_costants
 from agents.network import Network
 import inspect
  
-def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAULT_MODEL_FILENAME):
+def run_training(number_episodes):
     env = TrackEnv(render_mode="human")
     state_shape = env.observation_space["agent_view"].shape
 
@@ -38,27 +38,6 @@ def run_training(number_episodes, resume=DEFAULT_RESUME_TRAIN, model_path= DEFAU
     step_count=0
 
     pilota = Agent(state_size, number_actions, number_episodes)
-
-    if resume:
-        if os.path.isabs(model_path):
-            model_fullpath = model_path
-        else:
-            model_fullpath = os.path.join(os.getcwd(), CHECKPOINTS_PATH, model_path)
-
-        print(model_fullpath)
-
-        if not os.path.exists(model_fullpath):
-            print(f"ERRORE: Il file '{model_fullpath}' non esiste.")
-            return
-
-        print(f"Caricamento modello da: {model_fullpath}...")
-
-        state_dict = torch.load(model_fullpath, map_location=torch.device(DEVICE))
-        pilota.q_net.load_state_dict(state_dict)
-        
-        #pilota_test.q_net.eval() 
-
-    
 
     # Liste per tenere traccia dei punteggi
     scores = []
@@ -260,17 +239,11 @@ if __name__ == "__main__":
     parser.add_argument("mode", choices=["train", "test"])
     parser.add_argument("--ep", type=int, default=DEFAULT_TRAIN_EPISODES, help="numero di episodi per il training (default: 10000)")
     parser.add_argument("--mod", type=str, default=DEFAULT_MODEL_FILENAME, help="file per il testing (default: best_model.pth)")
-    parser.add_argument("--res", type=bool, default=DEFAULT_RESUME_TRAIN, help ="il training riparte da un modello già esistente")
     args = parser.parse_args()
 
     if args.mode == "train":
-        if args.res :
-            mode = "resume"
-        else:
-            mode = "daZero"
-
-        print(f"training con {args.ep} episodi, in modalità {mode}")
-        run_training(args.ep, args.res)
+        print(f"training con {args.ep} episodi")
+        run_training(args.ep)
         
     elif args.mode == "test":
         print(f"testo con {args.mod}")
