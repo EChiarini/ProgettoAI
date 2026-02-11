@@ -10,7 +10,7 @@ DEFAULT_MODEL_FILENAME = "best_model.pth"
 DEFAULT_GRAPH_FILENAME = "grafico_finale.png"
 REPORT_FILENAME = "heatmap_finale"
 GEN_REPORT = True
-TRAINING_MODE = 1
+TRAINING_MODE = 0
 
 CHECKPOINTS_PATH = Path("models/checkpoints")
 RESULTS_PATH = Path("results")

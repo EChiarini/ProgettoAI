@@ -10,6 +10,7 @@ from utils import DEVICE
 
 from .agent_costants import *
 
+
 class ReplayBuffer:
 
     def __init__(self, capacity, batch_size, seed=DEFAULT_SEED):
@@ -39,6 +40,7 @@ class Agent:
 
         self.action_size = action_size
         self.view_size = view_size
+        self.fine_tuning_mode = False
         
         # Calcoliamo la dimensione totale dell'input appiattito
         self.input_dim = view_size * view_size 
@@ -113,21 +115,31 @@ class Agent:
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward, next_state, done)
         
-        self.t_step = (self.t_step + 1) % TARGET_UPDATE_EVERY
-        if self.t_step == 0:
-            if len(self.memory) > self.memory.batch_size:
+        # Incrementiamo il contatore globale
+        self.t_step += 1 
+        
+        # 1. IMPARA (Ogni 4 passi)
+        if self.t_step % TARGET_UPDATE_EVERY == 0:
+            # Logica per gestire sia Training Zero che Fine Tuning
+            soglia = FINE_TUNING_WARMUP if self.fine_tuning_mode else self.memory.batch_size
+            
+            if len(self.memory) > soglia:
                 self.learn()
+
+        # 2. AGGIORNA TARGET NET (Hard Update - Ogni 1000 passi)
+        # Questo è il segreto per il training stabile da zero!
+        if self.t_step % 1000 == 0:
+            self.target_net.load_state_dict(self.q_net.state_dict())
 
 
     def learn(self):
+     
         states, actions, rewards, next_states, dones = self.memory.sample()
 
-        # 1. Preprocessiamo il batch
+       
         states_np = self._preprocess_state(states)
         next_states_np = self._preprocess_state(next_states)
 
-        # 2. Conversione in Tensor E SPOSTAMENTO SU DEVICE
-        # AGGIUNTO .to(DEVICE) A TUTTI I TENSORI
         states_t = torch.tensor(states_np).float().to(DEVICE)
         next_states_t = torch.tensor(next_states_np).float().to(DEVICE)
         
@@ -135,7 +147,7 @@ class Agent:
         rewards_t = torch.tensor(rewards).float().unsqueeze(1).to(DEVICE)
         dones_t = torch.tensor(dones).float().unsqueeze(1).to(DEVICE)
 
-        # --- Calcolo della loss ---
+    
         q_expected = self.q_net(states_t).gather(1, actions_t)
         
         with torch.no_grad():
@@ -144,10 +156,14 @@ class Agent:
         
         loss = F.mse_loss(q_expected, q_target)
         
+  
         self.optimizer.zero_grad()
         loss.backward()
+        
+        # MANTENIAMO IL CLIPPING (Salva dagli errori matematici)
+        torch.nn.utils.clip_grad_norm_(self.q_net.parameters(), 1.0)
+        
         self.optimizer.step()
-
 
     def load_model(self, file_path):
         """

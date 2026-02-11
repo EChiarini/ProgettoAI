@@ -52,12 +52,14 @@ def run_training(number_episodes):
         print(f"--- FINE TUNING ATTIVATO ---")
         search_path = Path("models/fine_tuning_model")
         found_files = list(search_path.glob("*.pth"))
-
+        pilota.fine_tuning_mode = True
         
         if found_files:
             model_path = str(found_files[0])
             print(f"Trovato: {model_path}")
             pilota.load_model(model_path)
+            pilota.target_net.load_state_dict(pilota.q_net.state_dict())
+            print(">>> TARGET NET SINCRONIZZATA MANUALMENTE <<<")
         else:
             raise FileNotFoundError(f"Nessun file .pth trovato in {search_path}!")
         
