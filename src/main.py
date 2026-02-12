@@ -102,10 +102,8 @@ def run_training(number_episodes):
         # Aggiorniamo la barra di caricamento con le info utili
         loop.set_description(f"Ep: {i_episode+1} | Score: {score:.2f} | Avg Score: {np.mean(scores_window):.2f} | Epsilon: {pilota.epsilon:.3f}")
 
-
-        # Salva modello il migliore
-        if avg_score > best_avg_score and len(scores_window) >= SCORES_WINDOW_SIZE:
-            best_avg_score = avg_score
+        if score > best_avg_score:
+            best_avg_score = score
             torch.save(pilota.q_net.state_dict(), CHECKPOINTS_PATH / DEFAULT_MODEL_FILENAME)
 
         # Salviamo il modello ogni 100 episodi
