@@ -17,6 +17,13 @@ ROAD_WIDTH = 7
 NUM_CHECKPOINTS = 7
 ACTION_SPACE_SIZE = 4
 
+# "simple" (4 azioni, 1 passo) o "velocity" (9 azioni, accelerazione)
+MOVEMENT_MODE = "velocity"  # "simple" | "velocity"
+
+# Velocity mode constants
+VELOCITY_MAX_SPEED = 4
+VELOCITY_ACTION_SPACE_SIZE = 9
+
 # Observation space bounds
 OBS_LOW = TRACK_UNKNOWN_VALUE
 OBS_HIGH = TRACK_FINISH_VALUE
@@ -28,7 +35,7 @@ CHECKPOINT_REWARD = 30
 CURB_REWARD = -0.20
 FINISH_REWARD = 100
 REPEAT_PENALTY = -0.5
-BACKWARD_PENALTY = 1
+BACKWARD_PENALTY = 2
 
 # Track files
 DEFAULT_TRACK_FILENAME = "track_imola.csv"

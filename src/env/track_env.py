@@ -15,6 +15,7 @@ class TrackEnv(gym.Env):
         
         self.matrix = build_track()
         self.distance_matrix = crea_matrice_distanze(get_default_track_path(), "destra")
+        self._max_distance = self.distance_matrix.max()
 
         
 
@@ -39,18 +40,46 @@ class TrackEnv(gym.Env):
 
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
 
-        self.action_space = gym.spaces.Discrete(4)
-        
-        self._action_to_direction = {
-            0: np.array([0, 1]),
-            1: np.array([-1, 0]),
-            2: np.array([0, -1]),
-            3: np.array([1, 0]),
-        }
-        
-        self._last_action = 0 
+        self.movement_mode = MOVEMENT_MODE
 
-        self.observation_space = gym.spaces.Dict({
+        if self.movement_mode == "velocity":
+            self.action_space = gym.spaces.Discrete(VELOCITY_ACTION_SPACE_SIZE)
+            self.speed = np.array([0, 0], dtype=np.int32)
+            # Mappa azione -> (accelerazione_riga, accelerazione_colonna)
+            self._action_to_acceleration = {
+                0: (-1, -1),
+                1: (-1,  0),
+                2: (-1,  1),
+                3: ( 0, -1),
+                4: ( 0,  0),
+                5: ( 0,  1),
+                6: ( 1, -1),
+                7: ( 1,  0),
+                8: ( 1,  1),
+            }
+            self.observation_space = gym.spaces.Dict({
+                "agent_view": gym.spaces.Box(
+                    low=TRACK_UNKNOWN_VALUE,
+                    high=TRACK_FINISH_VALUE,
+                    shape=(self.view_size, self.view_size),
+                    dtype=np.float32
+                ),
+                "speed": gym.spaces.Box(
+                    low=-VELOCITY_MAX_SPEED,
+                    high=VELOCITY_MAX_SPEED,
+                    shape=(2,),
+                    dtype=np.int32
+                )
+            })
+        else:
+            self.action_space = gym.spaces.Discrete(4)
+            self._action_to_direction = {
+                0: np.array([0, 1]),
+                1: np.array([-1, 0]),
+                2: np.array([0, -1]),
+                3: np.array([1, 0]),
+            }
+            self.observation_space = gym.spaces.Dict({
                 "agent_view": gym.spaces.Box(
                     low=TRACK_UNKNOWN_VALUE,
                     high=TRACK_FINISH_VALUE,
@@ -59,14 +88,19 @@ class TrackEnv(gym.Env):
                 )
             })
 
+        self._last_action = 0
+
         self._checkpoints = dict()
         self.numero_checkpoints=NUM_CHECKPOINTS
 
         valore_checkpoint=self.distance_matrix.max()//self.numero_checkpoints
 
+        # Soglie di distanza per ogni checkpoint (per detection basata su distanza)
+        self._checkpoint_distances = []
         for i in range(self.numero_checkpoints-1):
             coordinate_checkpoint=argwhere(self.distance_matrix, valore_checkpoint*(i+1))
             self._checkpoints[f"checkpoint_{i+1}"] = coordinate_checkpoint
+            self._checkpoint_distances.append(valore_checkpoint * (i + 1))
 
         self._progresso = 0
         self._tempo_passato = 0
@@ -101,7 +135,10 @@ class TrackEnv(gym.Env):
                 view_matrix[x-tl_x , y-tl_y]=self.matrix[y,x]
 
         view_matrix = view_matrix.T
-        return { "agent_view": view_matrix }
+        obs = { "agent_view": view_matrix }
+        if self.movement_mode == "velocity":
+            obs["speed"] = np.array(self.speed, dtype=np.int32)
+        return obs
 
 
     def _get_info(self):
@@ -128,16 +165,21 @@ class TrackEnv(gym.Env):
         self._progresso = 0
         self._last_action = 0
 
+        if self.movement_mode == "velocity":
+            self.speed = np.array([0, 0], dtype=np.int32)
+
         coordinates = np.argwhere(self.matrix == TRACK_FINISH_VALUE)
 
-        slider = [0,0]
+        direzione = DEFAULT_DISTANCE_DIRECTION
         if options and "direzione" in options:
-            match options["direzione"]:
-                case "destra": slider=[0,1]
-                case "sinistra": slider=[0,-1]
-                case "basso": slider=[1,0]
-                case "alto": slider=[-1,0]
-                case _: slider=[0,0]
+            direzione = options["direzione"]
+
+        match direzione:
+            case "destra": slider=[0,1]
+            case "sinistra": slider=[0,-1]
+            case "basso": slider=[1,0]
+            case "alto": slider=[-1,0]
+            case _: slider=[0,0]
 
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype = np.int32)
         self._agent_location[0] = self._agent_location[0] + slider[0]
@@ -150,27 +192,86 @@ class TrackEnv(gym.Env):
         return observation, info
 
 
+    def _check_out_track(self, new_position):
+        """Controlla se il percorso verso new_position esce dalla pista (modalità velocity).
+        Verifica confini, cella di arrivo, e ogni cella intermedia del percorso."""
+        row, col = new_position
+        H, W = self.matrix.shape
+
+        # Fuori dai confini della matrice
+        if row < 0 or row >= H or col < 0 or col >= W:
+            return True
+
+        # La cella di arrivo è fuori pista
+        if self.matrix[row, col] == TRACK_OFFROAD_VALUE:
+            return True
+
+        # Controlla il percorso intermedio (interpolazione riga per riga, poi colonna)
+        cur_row, cur_col = self._agent_location
+        row_step = -1 if row < cur_row else 1
+        col_step = -1 if col < cur_col else 1
+
+        # Scansiona le righe intermedie nella colonna di partenza
+        for r in range(cur_row, row, row_step):
+            if self.matrix[r, cur_col] == TRACK_OFFROAD_VALUE:
+                return True
+
+        # Scansiona le colonne intermedie nella riga di arrivo
+        for c in range(cur_col, col, col_step):
+            if self.matrix[row, c] == TRACK_OFFROAD_VALUE:
+                return True
+
+        return False
+
+
     def step(self, action):
         reward = 0
         size = self.matrix.shape[0]
-        direction = self._action_to_direction[action]
-
 
         terminated = False
         truncated = False
-        
+
         # Drift logic: if direction changes, show smoke for 2 frames
         if action != self._last_action:
             self._drift_frames = 2
         else:
             if self._drift_frames > 0:
                 self._drift_frames -= 1
-                
+
         self._last_action = action
 
-        old_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+        old_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
 
-        self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
+        # ---- Calcolo nuova posizione in base alla modalità ----
+        if self.movement_mode == "velocity":
+            row_acc, col_acc = self._action_to_acceleration[action]
+
+            new_speed_row = self.speed[0] + row_acc
+            new_speed_col = self.speed[1] + col_acc
+
+            # Clipping velocità
+            new_speed_row = int(np.clip(new_speed_row, -VELOCITY_MAX_SPEED, VELOCITY_MAX_SPEED))
+            new_speed_col = int(np.clip(new_speed_col, -VELOCITY_MAX_SPEED, VELOCITY_MAX_SPEED))
+
+            new_position = np.array([
+                self._agent_location[0] + new_speed_row,
+                self._agent_location[1] + new_speed_col
+            ], dtype=np.int32)
+
+            # Se esce dalla pista: reward negativa e terminazione
+            if self._check_out_track(new_position):
+                reward = OFFROAD_REWARD
+                terminated = True
+                return self._get_obs(), reward, terminated, truncated, self._get_info()
+
+            # Aggiorna posizione e velocità
+            self._agent_location = new_position
+            self.speed = np.array([new_speed_row, new_speed_col], dtype=np.int32)
+        else:
+            # Modalità simple: movimento di 1 cella
+            direction = self._action_to_direction[action]
+            self._agent_location = np.clip(self._agent_location + direction, 0, size - 1)
+
         self._tempo_passato = self._tempo_passato + 1
         self._global_time += 1 # Increment global time
 
@@ -194,44 +295,63 @@ class TrackEnv(gym.Env):
             
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
-        
-        for x in self._target_location:
-            if np.array_equal(x, self._agent_location):
-                
-                if self._progresso == self.numero_checkpoints - 1: 
-                    
-                    reward += FINISH_REWARD
-                else:
-                    reward = -FINISH_REWARD
-                terminated = True
-                return self._get_obs(), reward, terminated, truncated, self._get_info()         
-                
+
+        # --- Offroad check ---
         if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
             reward = OFFROAD_REWARD
             terminated = True
             return self._get_obs(), reward, terminated, truncated, self._get_info()
 
+        new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
 
-        if not terminated:
-            checkpoint_key = f"checkpoint_{self._progresso+1}"
-            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward += CHECKPOINT_REWARD
-                    self._progresso = self._progresso + 1
-                    self._tempo_passato = 0
-                    return self._get_obs(), reward, terminated, truncated, self._get_info()   
-
-            new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
-            delta_distance = new_agent_distance - old_agent_distance
-
-            
-
-            if delta_distance > 0:
-                reward += delta_distance 
+        # --- Checkpoint check (basato su soglia di distanza, gestisce i salti) ---
+        while self._progresso < self.numero_checkpoints - 1:
+            threshold = self._checkpoint_distances[self._progresso]
+            if new_agent_distance >= threshold:
+                reward += CHECKPOINT_REWARD
+                self._progresso += 1
+                self._tempo_passato = 0
             else:
-                reward += delta_distance * BACKWARD_PENALTY
+                break
+
+        # --- Finish check (posizione esatta O wrap-around della distanza) ---
+        on_finish = False
+        for x in self._target_location:
+            if np.array_equal(x, self._agent_location):
+                on_finish = True
+                break
+
+        # Detect finish anche se l'agente ha saltato le celle del traguardo
+        # (distanza alta → distanza bassa = wrap-around oltre il traguardo)
+        crossed_finish = (self._progresso >= self.numero_checkpoints - 1 and
+                          old_agent_distance > self._max_distance * 0.7 and
+                          new_agent_distance < self._max_distance * 0.3)
+
+        if on_finish or crossed_finish:
+            if self._progresso >= self.numero_checkpoints - 1:
+                reward += FINISH_REWARD
+            else:
+                reward = -FINISH_REWARD
+            terminated = True
+            return self._get_obs(), reward, terminated, truncated, self._get_info()
+
+        # --- Distance-based reward ---
+        delta_distance = new_agent_distance - old_agent_distance
+
+        # Wrap-around detection: se il delta è > metà pista, l'agente ha
+        # attraversato il traguardo all'indietro → penalizzalo
+        if abs(delta_distance) > self._max_distance / 2:
+            if delta_distance > 0:
+                # Andato indietro oltre il traguardo (da dist bassa a dist alta)
+                delta_distance = delta_distance - self._max_distance  # diventa negativo
+            else:
+                # Andato avanti oltre il traguardo (da dist alta a dist bassa)
+                delta_distance = delta_distance + self._max_distance  # diventa positivo
+
+        if delta_distance > 0:
+            reward += delta_distance 
+        else:
+            reward += delta_distance * BACKWARD_PENALTY
         
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 

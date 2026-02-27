@@ -248,6 +248,9 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
             break
 
 
+    env_test.render()
+    print(f"Score: {score:.2f} | Steps: {step} | Progresso: {env_test._progresso}/{env_test.numero_checkpoints}")
+    time.sleep(2)
 
     env_test.close()
 
