@@ -95,12 +95,9 @@ class TrackEnv(gym.Env):
 
         valore_checkpoint=self.distance_matrix.max()//self.numero_checkpoints
 
-        # Soglie di distanza per ogni checkpoint (per detection basata su distanza)
-        self._checkpoint_distances = []
         for i in range(self.numero_checkpoints-1):
             coordinate_checkpoint=argwhere(self.distance_matrix, valore_checkpoint*(i+1))
             self._checkpoints[f"checkpoint_{i+1}"] = coordinate_checkpoint
-            self._checkpoint_distances.append(valore_checkpoint * (i + 1))
 
         self._progresso = 0
         self._tempo_passato = 0
@@ -296,64 +293,52 @@ class TrackEnv(gym.Env):
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
 
-        # --- Offroad check ---
+        for x in self._target_location:
+            if np.array_equal(x, self._agent_location):
+
+                if self._progresso == self.numero_checkpoints - 1:
+
+                    reward += FINISH_REWARD
+                else:
+                    reward = -FINISH_REWARD
+                terminated = True
+                return self._get_obs(), reward, terminated, truncated, self._get_info()
+
         if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
             reward = OFFROAD_REWARD
             terminated = True
             return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-        new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
 
-        # --- Checkpoint check (basato su soglia di distanza, gestisce i salti) ---
-        while self._progresso < self.numero_checkpoints - 1:
-            threshold = self._checkpoint_distances[self._progresso]
-            if new_agent_distance >= threshold:
-                reward += CHECKPOINT_REWARD
-                self._progresso += 1
-                self._tempo_passato = 0
-            else:
-                break
+        if not terminated:
+            checkpoint_key = f"checkpoint_{self._progresso+1}"
+            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
 
-        # --- Finish check (posizione esatta O wrap-around della distanza) ---
-        on_finish = False
-        for x in self._target_location:
-            if np.array_equal(x, self._agent_location):
-                on_finish = True
-                break
+            for x in checkpoint_list:
+                if np.array_equal(self._agent_location, x):
+                    reward += CHECKPOINT_REWARD
+                    self._progresso = self._progresso + 1
+                    self._tempo_passato = 0
+                    return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-        # Detect finish anche se l'agente ha saltato le celle del traguardo
-        # (distanza alta → distanza bassa = wrap-around oltre il traguardo)
-        crossed_finish = (self._progresso >= self.numero_checkpoints - 1 and
-                          old_agent_distance > self._max_distance * 0.7 and
-                          new_agent_distance < self._max_distance * 0.3)
+            new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
+            delta_distance = new_agent_distance - old_agent_distance
 
-        if on_finish or crossed_finish:
-            if self._progresso >= self.numero_checkpoints - 1:
-                reward += FINISH_REWARD
-                self._progresso = self.numero_checkpoints  # 7/7 sul HUD
-            else:
-                reward = -FINISH_REWARD
-            terminated = True
-            return self._get_obs(), reward, terminated, truncated, self._get_info()
+            # Wrap-around detection: se il delta è > metà pista, l'agente ha
+            # attraversato il traguardo all'indietro → penalizzalo
+            if abs(delta_distance) > self._max_distance / 2:
+                if delta_distance > 0:
+                    # Andato indietro oltre il traguardo (da dist bassa a dist alta)
+                    delta_distance = delta_distance - self._max_distance  # diventa negativo
+                else:
+                    # Andato avanti oltre il traguardo (da dist alta a dist bassa)
+                    delta_distance = delta_distance + self._max_distance  # diventa positivo
 
-        # --- Distance-based reward ---
-        delta_distance = new_agent_distance - old_agent_distance
-
-        # Wrap-around detection: se il delta è > metà pista, l'agente ha
-        # attraversato il traguardo all'indietro → penalizzalo
-        if abs(delta_distance) > self._max_distance / 2:
             if delta_distance > 0:
-                # Andato indietro oltre il traguardo (da dist bassa a dist alta)
-                delta_distance = delta_distance - self._max_distance  # diventa negativo
+                reward += delta_distance
             else:
-                # Andato avanti oltre il traguardo (da dist alta a dist bassa)
-                delta_distance = delta_distance + self._max_distance  # diventa positivo
+                reward += delta_distance * BACKWARD_PENALTY
 
-        if delta_distance > 0:
-            reward += delta_distance 
-        else:
-            reward += delta_distance * BACKWARD_PENALTY
-        
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
 
