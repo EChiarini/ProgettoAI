@@ -299,6 +299,7 @@ class TrackEnv(gym.Env):
                 if self._progresso == self.numero_checkpoints - 1:
 
                     reward += FINISH_REWARD
+                    self._progresso = self.numero_checkpoints  # 7/7 sul HUD
                 else:
                     reward = -FINISH_REWARD
                 terminated = True
