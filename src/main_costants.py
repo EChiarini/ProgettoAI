@@ -12,5 +12,5 @@ REPORT_FILENAME = "heatmap_finale"
 GEN_REPORT = True
 TRAINING_MODE = 0
 
-CHECKPOINTS_PATH = Path("models/checkpoints")
+CHECKPOINTS_PATH = Path("models/fine_tuning_model")
 RESULTS_PATH = Path("results")

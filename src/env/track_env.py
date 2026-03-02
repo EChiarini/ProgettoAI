@@ -4,7 +4,7 @@ import pygame
 import os
 import random
 import math
-from .track_utils import build_track, crea_matrice_distanze, argwhere, count_numpy_list
+from .track_utils import build_track, crea_matrice_distanze, argwhere, count_numpy_list, crea_matrice_centro
 from .track_costants import *
 import pygame.gfxdraw
 
@@ -15,7 +15,7 @@ class TrackEnv(gym.Env):
         
         self.matrix = build_track()
         self.distance_matrix = crea_matrice_distanze(get_default_track_path(), "destra")
-
+        self.center_matrix = crea_matrice_centro(self.matrix)
         
 
         self.render_mode = render_mode
@@ -169,6 +169,7 @@ class TrackEnv(gym.Env):
         self._last_action = action
 
         old_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
+        old_center_distance = self.center_matrix[self._agent_location[0], self._agent_location[1]]
 
         self._agent_location = np.clip( self._agent_location + direction, 0, size - 1 )
         self._tempo_passato = self._tempo_passato + 1
@@ -222,16 +223,17 @@ class TrackEnv(gym.Env):
                     self._progresso = self._progresso + 1
                     self._tempo_passato = 0
                     return self._get_obs(), reward, terminated, truncated, self._get_info()   
-
-            new_agent_distance =  self.distance_matrix[self._agent_location[0],self._agent_location[1]]
-            delta_distance = new_agent_distance - old_agent_distance
-
             
-
+            new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
+            new_center_distance = self.center_matrix[self._agent_location[0], self._agent_location[1]]
+            
+            delta_distance = new_agent_distance - old_agent_distance
+            delta_centro = old_center_distance - new_center_distance
+            
             if delta_distance > 0:
-                reward += delta_distance 
+                reward += delta_distance + (delta_centro * CENTER_WEIGHT)
             else:
-                reward += delta_distance * BACKWARD_PENALTY
+                reward += (delta_distance * BACKWARD_PENALTY) + (delta_centro * CENTER_WEIGHT)
         
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
