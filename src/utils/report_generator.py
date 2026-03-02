@@ -138,7 +138,8 @@ def genera_report(num_episodi, path_grafico, path_heatmap, agent_conf, track_con
     pdf.cell(0, 8, "Struttura Rete Neurale (Rilevata dal Codice)", 1, 1, 'L', fill=True)
     pdf.set_font('Courier', '', 9)
     # Stampa le righe estrapolate
-    pdf.multi_cell(0, 6, network_info, border=1)
+    safe_network_info = network_info.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 6, safe_network_info, border=1)
 
     # PAGINA 2: GRAFICI
     pdf.add_page()
@@ -161,8 +162,8 @@ def genera_report(num_episodi, path_grafico, path_heatmap, agent_conf, track_con
     pdf.ln(2)
     pdf.set_font('Courier', '', 7)
     pdf.set_fill_color(245, 245, 245)
-    pdf.multi_cell(0, 4, source_code_step, border=1, fill=True)
-
+    safe_source_code = source_code_step.encode('latin-1', 'replace').decode('latin-1')
+    pdf.multi_cell(0, 4, safe_source_code, border=1, fill=True)
     try:
         pdf.output(filename)
         print(f"\n[REPORT] PDF creato con successo: {filename}")
