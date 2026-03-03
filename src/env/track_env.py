@@ -220,6 +220,27 @@ class TrackEnv(gym.Env):
 
         return False
 
+    def _get_traversed_cells(self, old_position, new_position):
+        """Restituisce la lista di celle (row, col) attraversate dal movimento L-shaped."""
+        cells = []
+        cur_row, cur_col = int(old_position[0]), int(old_position[1])
+        new_row, new_col = int(new_position[0]), int(new_position[1])
+
+        row_step = -1 if new_row < cur_row else 1
+        col_step = -1 if new_col < cur_col else 1
+
+        # Prima: muovi lungo le righe (stessa colonna)
+        for r in range(cur_row, new_row + row_step, row_step):
+            if r != cur_row:  # skip posizione di partenza
+                cells.append((r, cur_col))
+
+        # Poi: muovi lungo le colonne (alla riga di destinazione)
+        for c in range(cur_col, new_col + col_step, col_step):
+            if (new_row, c) not in cells and (new_row, c) != (cur_row, cur_col):
+                cells.append((new_row, c))
+
+        return cells
+
 
     def step(self, action):
         reward = 0
@@ -261,13 +282,18 @@ class TrackEnv(gym.Env):
                 terminated = True
                 return self._get_obs(), reward, terminated, truncated, self._get_info()
 
+            # Calcola celle attraversate PRIMA di aggiornare la posizione
+            traversed = self._get_traversed_cells(self._agent_location, new_position)
+
             # Aggiorna posizione e velocità
             self._agent_location = new_position
             self.speed = np.array([new_speed_row, new_speed_col], dtype=np.int32)
         else:
             # Modalità simple: movimento di 1 cella
             direction = self._action_to_direction[action]
+            old_pos = self._agent_location.copy()
             self._agent_location = np.clip(self._agent_location + direction, 0, size - 1)
+            traversed = [(int(self._agent_location[0]), int(self._agent_location[1]))]
 
         self._tempo_passato = self._tempo_passato + 1
         self._global_time += 1 # Increment global time
@@ -293,17 +319,19 @@ class TrackEnv(gym.Env):
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
 
-        for x in self._target_location:
-            if np.array_equal(x, self._agent_location):
+        # Controlla traguardo su TUTTE le celle attraversate
+        for cell in traversed:
+            for x in self._target_location:
+                if x[0] == cell[0] and x[1] == cell[1]:
 
-                if self._progresso == self.numero_checkpoints - 1:
+                    if self._progresso == self.numero_checkpoints - 1:
 
-                    reward += FINISH_REWARD
-                    self._progresso = self.numero_checkpoints  # 7/7 sul HUD
-                else:
-                    reward = -FINISH_REWARD
-                terminated = True
-                return self._get_obs(), reward, terminated, truncated, self._get_info()
+                        reward += FINISH_REWARD
+                        self._progresso = self.numero_checkpoints  # 7/7 sul HUD
+                    else:
+                        reward = -FINISH_REWARD
+                    terminated = True
+                    return self._get_obs(), reward, terminated, truncated, self._get_info()
 
         if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
             reward = OFFROAD_REWARD
@@ -315,12 +343,14 @@ class TrackEnv(gym.Env):
             checkpoint_key = f"checkpoint_{self._progresso+1}"
             checkpoint_list = self._checkpoints.get(checkpoint_key, [])
 
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward += CHECKPOINT_REWARD
-                    self._progresso = self._progresso + 1
-                    self._tempo_passato = 0
-                    return self._get_obs(), reward, terminated, truncated, self._get_info()
+            # Controlla checkpoint su TUTTE le celle attraversate
+            for cell in traversed:
+                for x in checkpoint_list:
+                    if x[0] == cell[0] and x[1] == cell[1]:
+                        reward += CHECKPOINT_REWARD
+                        self._progresso = self._progresso + 1
+                        self._tempo_passato = 0
+                        return self._get_obs(), reward, terminated, truncated, self._get_info()
 
             new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
             delta_distance = new_agent_distance - old_agent_distance
