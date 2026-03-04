@@ -10,8 +10,9 @@ import pygame.gfxdraw
 
 class TrackEnv(gym.Env):
 
-    def __init__(self, render_mode=None): 
+    def __init__(self, render_mode=None, is_testing=False): 
         self.metadata = {"render_fps": RENDER_FPS, "render_modes": ["human", "rgb_array"]}
+        self.is_testing = is_testing
         
         self.matrix = build_track()
         self.distance_matrix = crea_matrice_distanze(get_default_track_path(), "destra")
@@ -238,6 +239,7 @@ class TrackEnv(gym.Env):
         self._last_action = action
 
         old_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
+        old_position = self._agent_location.copy()
 
         # ---- Calcolo nuova posizione in base alla modalità ----
         if self.movement_mode == "velocity":
@@ -293,35 +295,44 @@ class TrackEnv(gym.Env):
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
 
-        for x in self._target_location:
-            if np.array_equal(x, self._agent_location):
+        path_cells = [self._agent_location]
+        if self.is_testing and self.movement_mode == "velocity" and 'old_position' in locals():
+            path_cells = []
+            cur_row, cur_col = old_position
+            row, col = self._agent_location
+            row_step = -1 if row < cur_row else 1
+            col_step = -1 if col < cur_col else 1
+            for r in range(cur_row, row, row_step): path_cells.append(np.array([r, cur_col]))
+            for c in range(cur_col, col, col_step): path_cells.append(np.array([row, c]))
+            path_cells.append(self._agent_location.copy())
 
-                if self._progresso == self.numero_checkpoints - 1:
+        for cell in path_cells:
+            for x in self._target_location:
+                if np.array_equal(x, cell):
+                    if self._progresso == self.numero_checkpoints - 1:
+                        reward += FINISH_REWARD
+                        self._progresso = self.numero_checkpoints  # 7/7 sul HUD
+                    else:
+                        reward = -FINISH_REWARD
+                    terminated = True
+                    return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-                    reward += FINISH_REWARD
-                    self._progresso = self.numero_checkpoints  # 7/7 sul HUD
-                else:
-                    reward = -FINISH_REWARD
-                terminated = True
-                return self._get_obs(), reward, terminated, truncated, self._get_info()
+            checkpoint_key = f"checkpoint_{self._progresso+1}"
+            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
+
+            for x in checkpoint_list:
+                if np.array_equal(cell, x):
+                    reward += CHECKPOINT_REWARD
+                    self._progresso = self._progresso + 1
+                    self._tempo_passato = 0
+                    return self._get_obs(), reward, terminated, truncated, self._get_info()
 
         if self.matrix[self._agent_location[0],self._agent_location[1]] == TRACK_OFFROAD_VALUE:
             reward = OFFROAD_REWARD
             terminated = True
             return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-
         if not terminated:
-            checkpoint_key = f"checkpoint_{self._progresso+1}"
-            checkpoint_list = self._checkpoints.get(checkpoint_key, [])
-
-            for x in checkpoint_list:
-                if np.array_equal(self._agent_location, x):
-                    reward += CHECKPOINT_REWARD
-                    self._progresso = self._progresso + 1
-                    self._tempo_passato = 0
-                    return self._get_obs(), reward, terminated, truncated, self._get_info()
-
             new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
             delta_distance = new_agent_distance - old_agent_distance
 

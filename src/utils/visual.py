@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def save_training_plot(scores, filename="training_plot.png", window_size=50):
+def save_training_plot(scores, filename="training_plot.png", window_size=1000):
     """
     Crea e salva un grafico dell'andamento dei reward.
     

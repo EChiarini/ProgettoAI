@@ -191,7 +191,7 @@ def run_testing(model_path, delay=DEFAULT_TEST_DELAY):
 
     # 2. Crea l'ambiente in modalità 'human' per il rendering
     #    Nota: view_size deve essere uguale a quello usato in training (7)
-    env_test = TrackEnv(render_mode="human")
+    env_test = TrackEnv(render_mode="human", is_testing=True)
     
     view_size = VIEW_SIZE
     action_size = env_test.action_space.n
