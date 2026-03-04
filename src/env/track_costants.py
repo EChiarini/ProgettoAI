@@ -1,0 +1,82 @@
+import os
+
+# Track representation values
+TRACK_FINISH_VALUE = 0.3
+TRACK_CURB_VALUE = 0.1
+TRACK_ROAD_VALUE = 0.2
+TRACK_OFFROAD_VALUE = 0.0
+TRACK_UNKNOWN_VALUE = -0.1
+
+# Rendering
+RENDER_FPS = 30 
+WINDOW_SIZE_PX = 800
+
+# Agent view / track parameters
+VIEW_SIZE = 16
+ROAD_WIDTH = 7
+NUM_CHECKPOINTS = 7
+ACTION_SPACE_SIZE = 4
+
+# "simple" (4 azioni, 1 passo) o "velocity" (9 azioni, accelerazione)
+MOVEMENT_MODE = "velocity"  # "simple" | "velocity"
+
+# Velocity mode constants
+VELOCITY_MAX_SPEED = 4
+VELOCITY_ACTION_SPACE_SIZE = 9
+
+# Observation space bounds
+OBS_LOW = TRACK_UNKNOWN_VALUE
+OBS_HIGH = TRACK_FINISH_VALUE
+
+# Rewards
+OFFROAD_REWARD = -50
+STEP_PENALTY = -0.01
+CHECKPOINT_REWARD = 30
+CURB_REWARD = -0.20
+FINISH_REWARD = 100
+REPEAT_PENALTY = -0.5
+BACKWARD_PENALTY = 2
+
+# Track files
+DEFAULT_TRACK_FILENAME = "track_imola.csv"
+DEFAULT_TRACK_RELATIVE_PATH = os.path.join("data", "tracks", DEFAULT_TRACK_FILENAME)
+DEFAULT_DISTANCE_DIRECTION = "destra"
+DEFAULT_TRACK_MUSIC = "coconut_mall.mp3"
+
+def get_default_track_path():
+    return os.path.join(os.getcwd(), DEFAULT_TRACK_RELATIVE_PATH)
+
+
+# --- Visual Configuration (Mario Kart Style) ---
+COLOR_GRASS_MARIO = (0, 180, 0)        # Mario Green
+COLOR_GRASS_L = (0, 200, 0)
+COLOR_ROAD_MARIO = (120, 120, 120)     # Light Grey Road
+COLOR_ROAD_BORDER = (100, 100, 100)
+COLOR_KERB_1 = (255, 220, 0)           # Yellow
+COLOR_KERB_2 = (0, 100, 255)           # Blue
+COLOR_FINISH_CHECKER_1 = (255, 255, 255)
+COLOR_FINISH_CHECKER_2 = (0, 0, 0)
+
+# Items
+COLOR_BANANA = (255, 255, 0)
+COLOR_BANANA_SPOT = (140, 100, 0)
+COLOR_STAR = (255, 215, 0)
+COLOR_MYSTERY_BOX = (63, 224, 208)     # Turquoise
+
+# Decor
+COLOR_PIPE_GREEN = (0, 160, 0)
+COLOR_PIPE_L = (50, 200, 50)
+COLOR_MUSHROOM_CAP = (255, 0, 0)
+COLOR_MUSHROOM_WHITE = (255, 255, 255)
+COLOR_MUSHROOM_STEM = (255, 230, 200)
+
+# Kart
+COLOR_KART_BODY = (230, 20, 20)        # Red Mario Kart
+COLOR_KART_SEAT = (50, 50, 50)
+COLOR_KART_EXHAUST = (150, 150, 150)
+COLOR_DRIVER_HELMET = (230, 30, 30)    # Red Cap
+COLOR_DRIVER_SKIN = (255, 200, 150)
+
+# HUD
+COLOR_HUD_TEXT = (255, 255, 0)         # Arcade Yellow Text
+COLOR_HUD_STROKE = (0, 0, 0)

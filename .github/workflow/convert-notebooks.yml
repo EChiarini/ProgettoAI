@@ -1,0 +1,33 @@
+name: Convert Notebooks to PDF
+
+on:
+  push:
+    paths:
+      - 'notebooks/**/*.ipynb'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install nbconvert
+
+    - name: Convert notebooks to PDF
+      run: |
+        jupyter nbconvert --to pdf notebooks/*.ipynb
+
+    - name: Upload PDFs as artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: pdf-notebooks
+        path: notebooks/*.pdf
