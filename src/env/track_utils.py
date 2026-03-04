@@ -9,7 +9,7 @@ import seaborn as sns
 from matplotlib.colors import LogNorm
 import copy
 
-
+# Cerca un valore specifico in una matrice e restituisce le coordinate (riga, colonna) di tutte le occorrenze.
 def argwhere(matrix, value):
   l = list()
   x_max,y_max=matrix.shape
@@ -21,7 +21,7 @@ def argwhere(matrix, value):
 
   return l
 
-
+# Legge il file CSV del tracciato e lo converte in una matrice numpy.
 def build_track(fileName = get_default_track_path()):
     df = pd.read_csv(fileName, header=None, sep=',')
     df = df.astype(float)
@@ -29,6 +29,7 @@ def build_track(fileName = get_default_track_path()):
     print(f"Dimensioni matrice:{matrice_circuito.shape}")
     return matrice_circuito
 
+# Conta quante volte un certo punto (param) appare in una lista di coordinate
 def count_numpy_list(list_numpy, param):
     cont = 0
     for x in list_numpy:
@@ -37,6 +38,8 @@ def count_numpy_list(list_numpy, param):
 
     return cont
 
+# Funzione per la mappatura delle distanze
+# Implementa un algoritmo di ricerca in ampiezza (BFS - Breadth-First Search) per calcolare la distanza di ogni singola cella di asfalto dal traguardo
 def crea_matrice_distanze(percorsoFile, direzione):
     df = pd.read_csv(percorsoFile, sep = ',', header = None)
     matrice_distanze = df.to_numpy().copy()
@@ -51,7 +54,7 @@ def crea_matrice_distanze(percorsoFile, direzione):
 
     a = matrice_distanze
 
-    index = copy.deepcopy(traguardo) #secondo me ha più senso calcolare la distanza dalla prima cella del traguardo disponibile rispetto ad una (list([[35,50]]))
+    index = copy.deepcopy(traguardo)
 
     for i in index:
         a[i[0],i[1]] = 0
@@ -112,7 +115,26 @@ def crea_matrice_distanze(percorsoFile, direzione):
 
     return a
 
+#Crea una matrice dove il valore di ogni pezzo di asfalto rappresenta la sua distanza lineare dal centro della mappa
+def crea_matrice_centro(matrice_circuito):
 
+    altezza, larghezza = matrice_circuito.shape
+    matrice_centro = np.zeros((altezza, larghezza), dtype=float)
+    
+    punti_pista = np.argwhere(matrice_circuito != 0.0)
+    if len(punti_pista) > 0:
+        min_x, min_y = punti_pista.min(axis=0)
+        max_x, max_y = punti_pista.max(axis=0)
+        
+        centro_x = (min_x + max_x) / 2.0
+        centro_y = (min_y + max_y) / 2.0
+        
+        for x in range(altezza):
+            for y in range(larghezza):
+                if matrice_circuito[x, y] != 0.0:
+                    matrice_centro[x, y] = np.sqrt((x - centro_x)**2 + (y - centro_y)**2)
+                    
+    return matrice_centro
 
 
 
@@ -146,7 +168,7 @@ def salva_heatmap_csv(heatmap_dict, filename, shape):
     # fmt='%d' serve a salvare numeri interi (niente virgole decimali 0.00)
     np.savetxt(filename, grid, delimiter=",", fmt='%d')
    
-    print(f"✅ Heatmap salvata correttamente in: {filename}")
+    print(f"Heatmap salvata correttamente in: {filename}")
 
 
 
@@ -203,4 +225,4 @@ def salva_heatmap_immagine(heatmap_dict, filename, track_matrix):
     plt.savefig(filename, dpi=150)
     plt.close()
     
-    print(f"🔥 Heatmap Logaritmica (con bordi visibili) salvata in: {filename}")
+    print(f" Heatmap Logaritmica (con bordi visibili) salvata in: {filename}")
