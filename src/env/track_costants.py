@@ -18,7 +18,7 @@ NUM_CHECKPOINTS = 7
 ACTION_SPACE_SIZE = 4
 
 # "simple" (4 azioni, 1 passo) o "velocity" (9 azioni, accelerazione)
-MOVEMENT_MODE = "velocity"  # "simple" | "velocity"
+MOVEMENT_MODE = "simple"  # "simple" | "velocity" | "simple_aggiornato"
 
 # Velocity mode constants
 VELOCITY_MAX_SPEED = 4
@@ -35,7 +35,7 @@ CHECKPOINT_REWARD = 30
 CURB_REWARD = -0.20
 FINISH_REWARD = 100
 REPEAT_PENALTY = -0.5
-BACKWARD_PENALTY = 2
+BACKWARD_PENALTY = 1
 CENTER_WEIGHT = 0.2
 
 # Track files

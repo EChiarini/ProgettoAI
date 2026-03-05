@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from main_costants import SAVE_CHECKPOINT_EVERY
 
-def save_training_plot(scores, filename="training_plot.png", window_size=1000):
+def save_training_plot(scores, filename="training_plot.png", window_size=SAVE_CHECKPOINT_EVERY):
     """
     Crea e salva un grafico dell'andamento dei reward.
     
