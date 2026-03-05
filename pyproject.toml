@@ -3,7 +3,7 @@ name = "progettoai"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
     "fpdf>=1.7.2",
     "gymnasium>=1.2.3",
@@ -13,6 +13,9 @@ dependencies = [
     "pygame>=2.6.1",
     "seaborn>=0.13.2",
     "tqdm>=4.67.2",
+    "torch",
+    "torchvision",
+    "torchaudio",
 ]
 
 [dependency-groups]
@@ -20,3 +23,11 @@ dev = [
     "ipykernel>=7.1.0",
     "ruff>=0.14.14",
 ]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu130"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
