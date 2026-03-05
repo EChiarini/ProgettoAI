@@ -19,7 +19,7 @@ Gemfile.lock
 
 .venv/
 data/track_distance/
-models
+models/checkpoints
 results/
 src/agents/__pycache__
 src/env/__pycache__
