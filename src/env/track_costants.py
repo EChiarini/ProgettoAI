@@ -48,36 +48,39 @@ def get_default_track_path():
     return os.path.join(os.getcwd(), DEFAULT_TRACK_RELATIVE_PATH)
 
 
-# --- Visual Configuration (Mario Kart Style) ---
-COLOR_GRASS_MARIO = (0, 180, 0)        # Mario Green
-COLOR_GRASS_L = (0, 200, 0)
-COLOR_ROAD_MARIO = (120, 120, 120)     # Light Grey Road
-COLOR_ROAD_BORDER = (100, 100, 100)
-COLOR_KERB_1 = (255, 220, 0)           # Yellow
-COLOR_KERB_2 = (0, 100, 255)           # Blue
+# Anti-aliasing (SSAA: render at Nx resolution, smoothscale down)
+RENDER_SCALE = 5
+
+# --- Visual Configuration (Nightlife Futuristic) ---
+COLOR_GRASS = (134, 22, 119)             # Dark purple background
+COLOR_GRASS_DARK = (87, 12, 77)        # Darker purple variation
+COLOR_GRASS_LIGHT = (0, 20, 68)       # Lighter purple variation
+COLOR_ROAD = (22, 22, 30)              # Very dark asphalt with blue tint
+COLOR_ROAD_LIGHT = (28, 28, 38)        # Asphalt texture variation
+COLOR_ROAD_LINE = (0, 255, 200)        # Neon cyan road edge line
+COLOR_GRAVEL = (30, 25, 40)            # Dark purple gravel
+COLOR_KERB = (100, 210, 235)           # Light cyan/sky blue kerb
 COLOR_FINISH_CHECKER_1 = (255, 255, 255)
-COLOR_FINISH_CHECKER_2 = (0, 0, 0)
+COLOR_FINISH_CHECKER_2 = (15, 15, 20)
 
-# Items
-COLOR_BANANA = (255, 255, 0)
-COLOR_BANANA_SPOT = (140, 100, 0)
-COLOR_STAR = (255, 215, 0)
-COLOR_MYSTERY_BOX = (63, 224, 208)     # Turquoise
-
-# Decor
-COLOR_PIPE_GREEN = (0, 160, 0)
-COLOR_PIPE_L = (50, 200, 50)
-COLOR_MUSHROOM_CAP = (255, 0, 0)
-COLOR_MUSHROOM_WHITE = (255, 255, 255)
-COLOR_MUSHROOM_STEM = (255, 230, 200)
+# Checkpoint marker
+COLOR_CHECKPOINT = (0, 255, 180)        # Neon cyan-green
+COLOR_CHECKPOINT_GLOW = (0, 200, 255)   # Electric blue glow
 
 # Kart
-COLOR_KART_BODY = (230, 20, 20)        # Red Mario Kart
-COLOR_KART_SEAT = (50, 50, 50)
-COLOR_KART_EXHAUST = (150, 150, 150)
-COLOR_DRIVER_HELMET = (230, 30, 30)    # Red Cap
-COLOR_DRIVER_SKIN = (255, 200, 150)
+COLOR_KART_BODY = (0, 90, 200)         # Racing blue
+COLOR_KART_ACCENT = (255, 255, 255)    # White accent stripe
+COLOR_KART_WHEEL = (30, 30, 30)        # Dark rubber
+COLOR_KART_WHEEL_RIM = (160, 160, 170) # Alloy rim
+COLOR_DRIVER_HELMET = (220, 220, 225)  # White/silver helmet
+COLOR_DRIVER_VISOR = (40, 40, 45)      # Dark visor
 
 # HUD
-COLOR_HUD_TEXT = (255, 255, 0)         # Arcade Yellow Text
+COLOR_HUD_TEXT = (0, 255, 200)          # Neon cyan text
+COLOR_HUD_ACCENT = (255, 0, 100)       # Neon pink accent
 COLOR_HUD_STROKE = (0, 0, 0)
+COLOR_HUD_BG = (10, 10, 20, 180)       # Dark semi-transparent panel
+
+# Font
+FONT_PATH = os.path.join("data", "Orbitron.ttf")
+
