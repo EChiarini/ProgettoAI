@@ -354,33 +354,39 @@ class TrackEnv(gym.Env):
         elif self.render_mode == "human":
             return self._render_frame()
 
-    # --- DRAWING HELPERS ---
-    def _draw_star(self, surface, x, y, size, color):
-        points = []
-        for i in range(10):
-            angle = i * (math.pi / 5) - (math.pi / 2)
-            radius = size if i % 2 == 0 else size / 2.5
-            points.append((x + math.cos(angle) * radius, y + math.sin(angle) * radius))
-        pygame.gfxdraw.aapolygon(surface, points, color)
-        pygame.gfxdraw.filled_polygon(surface, points, color)
+    # --- DRAWING HELPERS (Realistic) ---
 
-    def _draw_banana(self, surface, x, y, size):
-        rect = pygame.Rect(x - size, y - size/2, size*2, size)
-        pygame.draw.arc(surface, COLOR_BANANA, rect, 0, 3.14, int(size/3))
-        pygame.draw.line(surface, COLOR_BANANA_SPOT, (x - size, y), (x - size - 2, y - 2), 2)
+    def _draw_checkpoint_marker(self, surface, cx, cy, size):
+        """Draw a futuristic neon checkpoint marker with pulsing glow."""
+        glow_surf = pygame.Surface((int(size * 4), int(size * 4)), pygame.SRCALPHA)
+        glow_center = int(size * 2)
+        # Neon outer glow rings (cyan/electric blue)
+        for i in range(5, 0, -1):
+            alpha = 15 * i
+            r = int(size * (0.5 + i * 0.3))
+            pygame.draw.circle(glow_surf, (*COLOR_CHECKPOINT_GLOW, alpha), (glow_center, glow_center), r)
+        surface.blit(glow_surf, (int(cx - size * 2), int(cy - size * 2)))
 
-    def _draw_mushroom(self, surface, x, y, size):
-        cap_rect = pygame.Rect(x - size, y - size, size*2, size)
-        pygame.draw.ellipse(surface, COLOR_MUSHROOM_CAP, cap_rect)
-        pygame.draw.circle(surface, COLOR_MUSHROOM_WHITE, (x, y - size/2), size/3)
-        stem_rect = pygame.Rect(x - size/2, y, size, size)
-        pygame.draw.rect(surface, COLOR_MUSHROOM_STEM, stem_rect)
-
-    def _draw_pipe(self, surface, x, y, size):
-        w, h = size, size * 1.5
-        pygame.draw.rect(surface, COLOR_PIPE_GREEN, (x - w/2 - 2, y - h, w + 4, 10))
-        pygame.draw.rect(surface, COLOR_PIPE_GREEN, (x - w/2, y - h + 10, w, h - 10))
-        pygame.draw.line(surface, COLOR_PIPE_L, (x - w/2 + 4, y - h + 12), (x - w/2 + 4, y-2), 2)
+        # Diamond shape with neon color
+        half = size * 0.45
+        points = [
+            (cx, cy - half),
+            (cx + half, cy),
+            (cx, cy + half),
+            (cx - half, cy),
+        ]
+        int_points = [(int(p[0]), int(p[1])) for p in points]
+        pygame.gfxdraw.aapolygon(surface, int_points, COLOR_CHECKPOINT)
+        pygame.gfxdraw.filled_polygon(surface, int_points, COLOR_CHECKPOINT)
+        # Inner bright core
+        inner = size * 0.18
+        inner_pts = [
+            (int(cx), int(cy - inner)),
+            (int(cx + inner), int(cy)),
+            (int(cx), int(cy + inner)),
+            (int(cx - inner), int(cy)),
+        ]
+        pygame.gfxdraw.filled_polygon(surface, inner_pts, (255, 255, 255))
 
     def _render_frame(self):
         if self.window is None and self.render_mode == "human":
@@ -389,12 +395,13 @@ class TrackEnv(gym.Env):
             pygame.display.init()
             self.window = pygame.display.set_mode((self.window_size, self.window_size))
             
+            # --- MUSIC INIT ---
             try:
                 pygame.mixer.init()
                 music_path = os.path.join("data", "music", DEFAULT_TRACK_MUSIC)
                 if os.path.exists(music_path):
                     pygame.mixer.music.load(music_path)
-                    pygame.mixer.music.play(-1) 
+                    pygame.mixer.music.play(-1)
                     pygame.mixer.music.set_volume(0.5)
                 else:
                     print(f"Music file not found at: {music_path}")
@@ -405,73 +412,97 @@ class TrackEnv(gym.Env):
             self.clock = pygame.time.Clock()
 
         max_dim = max(self.matrix.shape)
-        SCALE = 2 
-        hi_res_size = int(self.window_size * SCALE)
+        # Use exact floating point sizes to avoid integer rounding desync
+        rows, cols = self.matrix.shape
+        cell_w = self.window_size / cols
+        cell_h = self.window_size / rows
+        pix_square_size = min(cell_w, cell_h)
 
-        canvas_hi = pygame.Surface((hi_res_size, hi_res_size))
-        pix_square_size = int(self.window_size // max_dim)
+        canvas_hi = pygame.Surface((self.window_size, self.window_size))
 
+        # --- BACKGROUND GENERATION (Smooth Mask Compositing) ---
         if self.background_surface is None:
-            self.background_surface = pygame.Surface((self.window_size, self.window_size))
-            self.background_surface.fill(COLOR_GRASS_MARIO)
-
-            rows, cols = self.matrix.shape
-            for r in range(rows):
-                for c in range(cols):
-                    val = self.matrix[r, c]
-                    
-                    rect = pygame.Rect(
-                        int(c * pix_square_size),
-                        int(r * pix_square_size),
-                        pix_square_size + 1,
-                        pix_square_size + 1
-                    )
-
-                    if val != TRACK_ROAD_VALUE and val != TRACK_CURB_VALUE and val != TRACK_FINISH_VALUE:
-                         if random.random() < 0.05: 
-                            decoration_type = random.choice(["pipe", "mushroom"])
-                            center_x = rect.centerx + random.randint(-5, 5)
-                            center_y = rect.centery + random.randint(-5, 5)
-                            self.decorations.append({"type": decoration_type, "pos": (center_x, center_y), "size": pix_square_size/2})
-
-                    if val == TRACK_ROAD_VALUE:
-                        pygame.draw.rect(self.background_surface, COLOR_ROAD_MARIO, rect)
-                        
-                        if random.random() < 0.02: 
-                            self.decorations.append({"type": "banana", "pos": rect.center, "size": pix_square_size/3})
-
-                    elif val == TRACK_CURB_VALUE:
-                        pygame.draw.rect(self.background_surface, COLOR_KERB_1, rect)
-                        pygame.draw.polygon(self.background_surface, COLOR_KERB_2, [
-                            (rect.left + 8, rect.top), 
-                            (rect.right, rect.top), 
-                            (rect.right, rect.bottom - 8),
-                            (rect.left, rect.bottom - 8)
-                        ])
-
-                    elif val == TRACK_FINISH_VALUE:
-                        pygame.draw.rect(self.background_surface, COLOR_FINISH_CHECKER_1, rect)
-                        half = pix_square_size / 2
-                        pygame.draw.rect(self.background_surface, COLOR_FINISH_CHECKER_2, (rect.left, rect.top, half, half))
-                        pygame.draw.rect(self.background_surface, COLOR_FINISH_CHECKER_2, (rect.left + half, rect.top + half, half, half))
-
-
-            for decor in self.decorations:
-                if decor["type"] in ["pipe", "mushroom"]:
-                    x, y = decor["pos"]
-                    if decor["type"] == "pipe":
-                        self._draw_pipe(self.background_surface, x, y, decor["size"])
-                    elif decor["type"] == "mushroom":
-                        self._draw_mushroom(self.background_surface, x, y, decor["size"])
+            import scipy.ndimage
             
-        canvas = pygame.transform.smoothscale(canvas_hi, (self.window_size, self.window_size))
+            # Create discrete masks for each surface type
+            mask_road = (self.matrix == TRACK_ROAD_VALUE).astype(np.float32)
+            mask_curb = (self.matrix == TRACK_CURB_VALUE).astype(np.float32)
+            mask_finish = (self.matrix == TRACK_FINISH_VALUE).astype(np.float32)
+            
+            # Smooth upscale masks (bicubic interpolation creates beautiful curves)
+            smooth_road = scipy.ndimage.zoom(mask_road, (self.window_size/rows, self.window_size/cols), order=3)
+            smooth_curb = scipy.ndimage.zoom(mask_curb, (self.window_size/rows, self.window_size/cols), order=3)
+            smooth_finish = scipy.ndimage.zoom(mask_finish, (self.window_size/rows, self.window_size/cols), order=3)
+            
+            # Base color arrays (H, W, 3)
+            H, W = int(self.window_size), int(self.window_size)
+            
+            # --- Smooth radial purple gradient background ---
+            y_coords_bg, x_coords_bg = np.indices((H, W))
+            center_y, center_x = H / 2, W / 2
+            dist_from_center = np.sqrt((x_coords_bg - center_x)**2 + (y_coords_bg - center_y)**2)
+            max_dist = np.sqrt(center_x**2 + center_y**2)
+            gradient_t = (dist_from_center / max_dist)[..., np.newaxis]  # 0 at center, 1 at corners
+            
+            # Blend from lighter purple (center) to darker purple (edges)
+            color_center = np.array(COLOR_GRASS_LIGHT, dtype=np.float32)
+            color_edge = np.array(COLOR_GRASS_DARK, dtype=np.float32)
+            rgb_map = color_center * (1 - gradient_t) + color_edge * gradient_t
+
+            # --- Neon fuchsia grid on background only ---
+            grid_spacing = 40  # pixels between grid lines
+            grid_thickness = 1  # 1px thin lines
+            grid_on_x = (x_coords_bg % grid_spacing) < grid_thickness
+            grid_on_y = (y_coords_bg % grid_spacing) < grid_thickness
+            grid_mask = (grid_on_x | grid_on_y).astype(np.float32)
+            # Exclude road and curb areas from the grid
+            bg_only = np.clip(1.0 - smooth_road * 3.0 - smooth_curb * 3.0, 0, 1)
+            grid_mask = grid_mask * bg_only
+            grid_mask = grid_mask[..., np.newaxis]
+            neon_fuchsia = np.array([255, 0, 180], dtype=np.float32)
+            # Blend grid with a soft glow effect (semi-transparent)
+            rgb_map = rgb_map * (1 - grid_mask * 0.45) + neon_fuchsia * (grid_mask * 0.45)
+
+            # 2. Darker halo near road (subtle transition)
+            alpha_mowed = np.clip(1.0 - np.abs(smooth_road - 0.25) / 0.15, 0, 1)
+            alpha_mowed = alpha_mowed[..., np.newaxis]
+            rgb_map = rgb_map * (1 - alpha_mowed) + np.array(COLOR_GRASS_DARK) * alpha_mowed
+
+            # 3. Road blend (clean flat asphalt, subtle noise only)
+            alpha_road = np.clip((smooth_road - 0.48) / 0.04, 0, 1)
+            alpha_road = alpha_road[..., np.newaxis]
+            noise_hf = (np.random.rand(H, W, 3).astype(np.float32) - 0.5) * 8.0
+            road_texture = np.array(COLOR_ROAD) + noise_hf
+            rgb_map = rgb_map * (1 - alpha_road) + road_texture * alpha_road
+
+            # 4. Curb blend (solid uniform neon color)
+            alpha_curb = np.clip((smooth_curb - 0.3) / 0.1, 0, 1)
+            alpha_curb = alpha_curb[..., np.newaxis]
+            rgb_map = rgb_map * (1 - alpha_curb) + np.array(COLOR_KERB) * alpha_curb
+
+            # 4b. Neon glow edge line (road boundary)
+            # Thin bright neon line right at the road-to-curb transition
+            alpha_edge = np.clip(1.0 - np.abs(smooth_road - 0.45) / 0.03, 0, 1)
+            alpha_edge = alpha_edge[..., np.newaxis]
+            rgb_map = rgb_map * (1 - alpha_edge) + np.array(COLOR_ROAD_LINE) * alpha_edge
+
+            # 5. Finish blend
+            alpha_finish = np.clip((smooth_finish - 0.3) / 0.1, 0, 1)
+            alpha_finish = alpha_finish[..., np.newaxis]
+            y_coords, x_coords = np.indices((H, W))
+            finish_pattern = ((((x_coords // 10) % 2) == ((y_coords // 10) % 2)))[..., np.newaxis]
+            finish_color = np.where(finish_pattern, COLOR_FINISH_CHECKER_1, COLOR_FINISH_CHECKER_2)
+            rgb_map = rgb_map * (1 - alpha_finish) + finish_color * alpha_finish
+
+            # Finalize and convert to Pygame surface
+            rgb_map = np.clip(rgb_map, 0, 255).astype(np.uint8)
+            # Pygame surfarray expects (W, H, 3)
+            self.background_surface = pygame.surfarray.make_surface(np.transpose(rgb_map, (1, 0, 2)))
+
+        # Blit cached background
         canvas_hi.blit(self.background_surface, (0, 0))
 
-        for decor in self.decorations:
-            if decor["type"] == "banana":
-                 self._draw_banana(canvas_hi, decor["pos"][0], decor["pos"][1], decor["size"])
-
-        current_time = pygame.time.get_ticks() / 100
+        # --- CHECKPOINT MARKERS (diamond, only uncollected) ---
         for key, value in self._checkpoints.items():
             try:
                 cp_idx = int(key.split("_")[1])
@@ -483,14 +514,15 @@ class TrackEnv(gym.Env):
                 center_row = np.mean(coords[:, 0])
                 center_col = np.mean(coords[:, 1])
                 
-                cx = (center_col + 0.5) * pix_square_size
-                cy = (center_row + 0.5) * pix_square_size
+                cx = (center_col + 0.5) * cell_w
+                cy = (center_row + 0.5) * cell_h
                 
-                offset_y = math.sin(current_time * 0.5) * 5
-                self._draw_star(canvas_hi, cx, cy + offset_y, pix_square_size/2.5, COLOR_STAR)
+                self._draw_checkpoint_marker(canvas_hi, cx, cy, pix_square_size * 0.6)
 
-        cx = (self._agent_location[1] + 0.5) * pix_square_size
-        cy = (self._agent_location[0] + 0.5) * pix_square_size
+
+        # --- KART ---
+        cx = (self._agent_location[1] + 0.5) * cell_w
+        cy = (self._agent_location[0] + 0.5) * cell_h
         
         angle = 0
         if self._last_action == 0: angle = 0   
@@ -498,74 +530,152 @@ class TrackEnv(gym.Env):
         if self._last_action == 2: angle = 180 
         if self._last_action == 3: angle = 270 
 
-        shadow_rect = pygame.Rect(0, 0, pix_square_size * 0.8, pix_square_size * 0.8)
-        shadow_surf = pygame.Surface((pix_square_size, pix_square_size), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow_surf, (0, 0, 0, 100), shadow_rect)
-        shadow_rotated = pygame.transform.rotate(shadow_surf, angle)
-        shadow_dest = shadow_rotated.get_rect(center=(cx + 5, cy + 5))
-        canvas_hi.blit(shadow_rotated, shadow_dest)
-        
+        # Shadow (SSAA: draw at hi-res, rotate, smoothscale down)
+        # Shadow (SSAA: draw at hi-res, rotate, smoothscale down)
+        k = RENDER_SCALE
+        shadow_size = int(pix_square_size * 1.4 * k)
+        shadow_surf = pygame.Surface((shadow_size, shadow_size), pygame.SRCALPHA)
+        for i in range(4):
+            alpha = 40 - i * 10
+            shrink = i * 2 * k
+            sr = pygame.Rect(shrink, shrink,
+                             shadow_size - shrink * 2,
+                             int(shadow_size * 0.6) - shrink)
+            if sr.width > 0 and sr.height > 0:
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, max(0, alpha)), sr)
+        shadow_rot = pygame.transform.rotate(shadow_surf, angle)
+        sw, sh = shadow_rot.get_width(), shadow_rot.get_height()
+        shadow_final = pygame.transform.smoothscale(
+            shadow_rot, (max(1, sw // k), max(1, sh // k)))
+        shadow_dest = shadow_final.get_rect(center=(cx + 2, cy + 2))
+        canvas_hi.blit(shadow_final, shadow_dest)
+
+        # Drift smoke (subtle, darker)
         if self._drift_frames > 0:
              offset_base_x = 0
              offset_base_y = 0
              
-             if self._last_action == 0: 
+             if self._last_action == 0:
                  offset_base_x = -pix_square_size * 0.4
-             elif self._last_action == 2: 
+             elif self._last_action == 2:
                  offset_base_x = pix_square_size * 0.4
-             elif self._last_action == 1: 
+             elif self._last_action == 1:
                  offset_base_y = pix_square_size * 0.4
-             elif self._last_action == 3: 
+             elif self._last_action == 3:
                  offset_base_y = -pix_square_size * 0.4
 
-             for _ in range(2): 
-                 rnd_x = random.randint(-5, 5)
-                 rnd_y = random.randint(-5, 5)
-                 
+             for _ in range(3): 
+                 rnd_x = random.randint(-4, 4)
+                 rnd_y = random.randint(-4, 4)
                  smoke_pos = (cx + offset_base_x + rnd_x, cy + offset_base_y + rnd_y)
-                 smoke_size = random.randint(3, 7) 
-                 
-                 smoke_surf = pygame.Surface((smoke_size*2, smoke_size*2), pygame.SRCALPHA)
-                 pygame.draw.circle(smoke_surf, (150, 150, 150, 120), (smoke_size, smoke_size), smoke_size) 
-                 canvas_hi.blit(smoke_surf, (smoke_pos[0]-smoke_size, smoke_pos[1]-smoke_size))
+                 smoke_size = random.randint(2, 5)
+                 smoke_surf = pygame.Surface((smoke_size * 2, smoke_size * 2), pygame.SRCALPHA)
+                 pygame.draw.circle(smoke_surf, (80, 80, 80, 70), (smoke_size, smoke_size), smoke_size) 
+                 canvas_hi.blit(smoke_surf, (smoke_pos[0] - smoke_size, smoke_pos[1] - smoke_size))
 
-        kart_surf = pygame.Surface((pix_square_size, pix_square_size), pygame.SRCALPHA)
-        w, h = pix_square_size * 0.9, pix_square_size * 0.6
-        kart_rect = pygame.Rect(pix_square_size/2 - w/2, pix_square_size/2 - h/2, w, h)
+
+        # Kart body (SSAA: draw at hi-res, rotate, smoothscale down)
+        # SCALE INCREASE: Multiplier increased for larger kart visibility
+        size_multiplier = 2.8 
+        k = RENDER_SCALE
+        kart_size = int(pix_square_size * size_multiplier * k)
         
-        pygame.draw.rect(kart_surf, COLOR_KART_EXHAUST, (kart_rect.left - 4, kart_rect.centery - 4, 6, 8))
-        
-        tire_w, tire_h = w * 0.25, h * 0.5
-        pygame.draw.rect(kart_surf, (0,0,0), (kart_rect.left, kart_rect.top - 2, tire_w, tire_h))
-        pygame.draw.rect(kart_surf, (0,0,0), (kart_rect.right - tire_w, kart_rect.top - 2, tire_w, tire_h))
-        pygame.draw.rect(kart_surf, (0,0,0), (kart_rect.left, kart_rect.bottom - tire_h + 2, tire_w, tire_h))
-        pygame.draw.rect(kart_surf, (0,0,0), (kart_rect.right - tire_w, kart_rect.bottom - tire_h + 2, tire_w, tire_h))
+        # Load and cache the kart image
+        if self.kart_surface is None:
+            image_path = os.path.join("data", "car.png")
+            
+            # CRITICAL: We must ensure a display is set before convert_alpha()
+            if pygame.display.get_surface() is None:
+                 # Create a dummy surface if running headlessly
+                 pygame.display.set_mode((1,1), pygame.HIDDEN)
+            
+            if os.path.exists(image_path):
+                # Load the image and retain transparency
+                original_img = pygame.image.load(image_path).convert_alpha()
+                # Assuming the image is facing North, rotate it -90 to face East (angle 0)
+                original_img = pygame.transform.rotate(original_img, -90)
+                
+                # Scale up to our multi-sampled resolution 
+                # (keeping aspect ratio based on original image dimensions)
+                iw, ih = original_img.get_width(), original_img.get_height()
+                ratio = ih / iw
+                self.kart_surface = pygame.transform.smoothscale(
+                    original_img, (kart_size, int(kart_size * ratio))
+                )
+            else:
+                # Fallback if image doesn't exist
+                self.kart_surface = pygame.Surface((kart_size, kart_size), pygame.SRCALPHA)
+                pygame.draw.rect(self.kart_surface, COLOR_KART_BODY, (0, 0, kart_size, kart_size), border_radius=10)
 
-        pygame.draw.rect(kart_surf, COLOR_KART_BODY, kart_rect, border_radius=5)
-        pygame.draw.circle(kart_surf, COLOR_DRIVER_HELMET, kart_rect.center, h * 0.45) 
-        pygame.draw.circle(kart_surf, "white", (kart_rect.centerx + 2, kart_rect.centery - 2), 3)
-
-        rotated_kart = pygame.transform.rotate(kart_surf, angle)
+        # Rotate at hi-res, then smoothscale down for clean AA
+        rotated = pygame.transform.rotozoom(self.kart_surface, angle, 1.0)
+        rw, rh = rotated.get_width(), rotated.get_height()
+        rotated_kart = pygame.transform.smoothscale(rotated, (max(1, rw // k), max(1, rh // k)))
         rect_rotated = rotated_kart.get_rect(center=(cx, cy))
         canvas_hi.blit(rotated_kart, rect_rotated)
 
+
+        # --- HUD (Futuristic Neon) ---
         if self.render_mode == "human":
+            # Load Orbitron futuristic font
             try:
-                font = pygame.font.Font(None, 36) 
+                font_path = os.path.join("data", "Orbitron.ttf")
+                font = pygame.font.Font(font_path, 22)
+                font_large = pygame.font.Font(font_path, 30)
             except:
-                font = pygame.font.SysFont(None, 36)
+                font = pygame.font.SysFont(None, 22)
+                font_large = pygame.font.SysFont(None, 30)
 
-            def draw_text_outlined(text, x, y, color):
-                base = font.render(text, True, color)
-                outline = font.render(text, True, COLOR_HUD_STROKE)
-                canvas_hi.blit(outline, (x-2, y))
-                canvas_hi.blit(outline, (x+2, y))
-                canvas_hi.blit(outline, (x, y-2))
-                canvas_hi.blit(outline, (x, y+2))
-                canvas_hi.blit(base, (x, y))
+            # Glassmorphism HUD panel (dark with neon border)
+            hud_panel = pygame.Surface((280, 75), pygame.SRCALPHA)
+            pygame.draw.rect(hud_panel, COLOR_HUD_BG, (0, 0, 280, 75), border_radius=6)
+            # Accent border glow
+            pygame.draw.rect(hud_panel, (*COLOR_HUD_ACCENT, 120), (0, 0, 280, 75), 1, border_radius=6)
+            canvas_hi.blit(hud_panel, (12, 12))
 
-            draw_text_outlined(f"CHECKPOINT: {self._progresso}/{self.numero_checkpoints}", 20, 20, COLOR_HUD_TEXT)
-            draw_text_outlined(f"TIME: {self._global_time}", 20, 60, (255, 255, 255))
+            def draw_text_neon(surf, fnt, text, x, y, color, glow_color=None):
+                """Draw text with neon glow effect."""
+                if glow_color is None:
+                    glow_color = color
+                # Glow layers
+                glow_surf = fnt.render(text, True, glow_color)
+                glow_alpha = pygame.Surface(glow_surf.get_size(), pygame.SRCALPHA)
+                glow_alpha.blit(glow_surf, (0, 0))
+                glow_alpha.set_alpha(40)
+                for dx, dy in [(-2,0),(2,0),(0,-2),(0,2),(-1,-1),(1,1),(-1,1),(1,-1)]:
+                    surf.blit(glow_alpha, (x + dx, y + dy))
+                # Main text
+                base = fnt.render(text, True, color)
+                surf.blit(base, (x, y))
+
+            draw_text_neon(canvas_hi, font_large,
+                           f"CP {self._progresso}/{self.numero_checkpoints}",
+                           24, 18, COLOR_HUD_TEXT, COLOR_CHECKPOINT_GLOW)
+
+            # Progress bar with neon fill
+            bar_x, bar_y, bar_w, bar_h = 24, 56, 248, 8
+            pygame.draw.rect(canvas_hi, (30, 30, 45), (bar_x, bar_y, bar_w, bar_h), border_radius=4)
+            progress_frac = self._progresso / max(1, self.numero_checkpoints)
+            fill_w = int(bar_w * progress_frac)
+            if fill_w > 0:
+                pygame.draw.rect(canvas_hi, COLOR_HUD_ACCENT, (bar_x, bar_y, fill_w, bar_h), border_radius=4)
+                # Glow on the fill
+                glow_bar = pygame.Surface((fill_w, bar_h + 6), pygame.SRCALPHA)
+                pygame.draw.rect(glow_bar, (*COLOR_HUD_ACCENT, 50), (0, 0, fill_w, bar_h + 6), border_radius=4)
+                canvas_hi.blit(glow_bar, (bar_x, bar_y - 3))
+            pygame.draw.rect(canvas_hi, (60, 60, 80), (bar_x, bar_y, bar_w, bar_h), 1, border_radius=4)
+
+            # Time (top-right) with neon styling
+            time_text = f"T {self._global_time}"
+            time_surf = font.render(time_text, True, COLOR_HUD_TEXT)
+            tw = time_surf.get_width()
+            time_panel = pygame.Surface((tw + 24, 36), pygame.SRCALPHA)
+            pygame.draw.rect(time_panel, COLOR_HUD_BG, (0, 0, tw + 24, 36), border_radius=6)
+            pygame.draw.rect(time_panel, (*COLOR_HUD_ACCENT, 120), (0, 0, tw + 24, 36), 1, border_radius=6)
+            canvas_hi.blit(time_panel, (self.window_size - tw - 36, 12))
+            draw_text_neon(canvas_hi, font, time_text,
+                           self.window_size - tw - 24, 18, COLOR_HUD_TEXT)
+
 
         if self.render_mode == "human":
             self.window.blit(canvas_hi, canvas_hi.get_rect())
