@@ -27,7 +27,7 @@ class TrackEnv(gym.Env):
         self.window = None
         self.clock = None
         self.background_surface = None
-
+        self.kart_surface = None
         # Decoration cache
         self.decorations = [] 
 
