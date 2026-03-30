@@ -9,8 +9,11 @@ import seaborn as sns
 from matplotlib.colors import LogNorm
 import copy
 
-# Cerca un valore specifico in una matrice e restituisce le coordinate (riga, colonna) di tutte le occorrenze.
 def argwhere(matrix, value):
+  """
+  Searches for a specific value in a matrix and returns a list of coordinates 
+  [row, column] for all occurrences.
+  """
   l = list()
   x_max,y_max=matrix.shape
   for x in range(x_max):
@@ -21,16 +24,16 @@ def argwhere(matrix, value):
 
   return l
 
-# Legge il file CSV del tracciato e lo converte in una matrice numpy.
 def build_track(fileName = get_default_track_path()):
+    """Reads the track CSV file and converts it into a NumPy matrix."""
     df = pd.read_csv(fileName, header=None, sep=',')
     df = df.astype(float)
     matrice_circuito = df.to_numpy()
     print(f"Dimensioni matrice:{matrice_circuito.shape}")
     return matrice_circuito
 
-# Conta quante volte un certo punto (param) appare in una lista di coordinate
 def count_numpy_list(list_numpy, param):
+    """Counts how many times a specific point (param) appears in a list of coordinates."""
     cont = 0
     for x in list_numpy:
         if x[0] == param[0] and x[1] == param [1]:
@@ -38,9 +41,12 @@ def count_numpy_list(list_numpy, param):
 
     return cont
 
-# Funzione per la mappatura delle distanze
-# Implementa un algoritmo di ricerca in ampiezza (BFS - Breadth-First Search) per calcolare la distanza di ogni singola cella di asfalto dal traguardo
 def crea_matrice_distanze(percorsoFile, direzione):
+    """
+    Distance mapping function.
+    Implements a Breadth-First Search (BFS) algorithm to calculate the distance 
+    of each single asphalt cell from the finish line.
+    """
     df = pd.read_csv(percorsoFile, sep = ',', header = None)
     matrice_distanze = df.to_numpy().copy()
     traguardo = argwhere(matrice_distanze,0.3)
@@ -76,11 +82,11 @@ def crea_matrice_distanze(percorsoFile, direzione):
         i[0]=i[0]+slider[0]
         i[1]=i[1]+slider[1]
         a[i[0],i[1]]=1
-    #print(f"linea iniziale {index}")
+    #print(f"Starting line {index}")
 
     while len(index) != 0:
         i = index.pop(0)
-        #bisogna capire come non fare andare all'indietro del traguardo
+        # We need to figure out how to avoid moving backward from the finish line
         if (i[1]-1) >= 0 and a[i[0],i[1]-1] == -2 and traguardo.count([i[0],i[1]-1]) == 0:
             a[i[0],i[1]-1] = a[i[0],i[1]]+1
             index.append([i[0],i[1]-1])
@@ -97,12 +103,12 @@ def crea_matrice_distanze(percorsoFile, direzione):
             a[i[0]+1,i[1]] = a[i[0],i[1]]+1
             index.append([i[0]+1,i[1]])
 
-    # 2. Convertiamo in DataFrame
+    # Convert to DataFrame
     traguardo_np = np.array(traguardo)
     righe = traguardo_np[:, 0]
     cols = traguardo_np[:, 1]
 
-    # Ora applichiamo il valore massimo
+    # Apply the maximum value
     valore_max = np.max(a) + 1
     a[righe, cols] = valore_max
     df = pd.DataFrame(a)   
@@ -115,9 +121,11 @@ def crea_matrice_distanze(percorsoFile, direzione):
 
     return a
 
-#Crea una matrice dove il valore di ogni pezzo di asfalto rappresenta la sua distanza lineare dal centro della mappa
 def crea_matrice_centro(matrice_circuito):
-
+    """
+    Creates a matrix where the value of each piece of asphalt represents 
+    its linear distance from the center of the map.
+    """
     altezza, larghezza = matrice_circuito.shape
     matrice_centro = np.zeros((altezza, larghezza), dtype=float)
     
@@ -140,74 +148,74 @@ def crea_matrice_centro(matrice_circuito):
 
 def salva_heatmap_csv(heatmap_dict, filename, shape):
     """
-    Converte il dizionario { (r, c): conteggio } in una matrice CSV.
+    Converts the dictionary { (r, c): count } into a CSV matrix.
    
     Args:
-        heatmap_dict: Il dizionario contenente le coordinate (tuple) e i valori.
-        filename: Il percorso dove salvare il file (es. "results/heatmap.csv").
-        shape: Le dimensioni della matrice originale (es. (60, 60)).
+        heatmap_dict: The dictionary containing coordinates (tuples) and visitation counts.
+        filename: The path where to save the file (e.g., "results/heatmap.csv").
+        shape: The dimensions of the original matrix (e.g., (60, 60)).
     """
-    # 1. Crea una matrice vuota (tutti zeri) delle dimensioni della pista
+    # Create an empty matrix (all zeros) with the track's dimensions
     grid = np.zeros(shape, dtype=int)
 
 
-    # 2. Riempie la matrice usando le coordinate del dizionario
+    # Fill the matrix using the dictionary coordinates
     for coord, count in heatmap_dict.items():
-        # Assumiamo coord sia una tupla (riga, colonna)
+        # Coord is a tuple (row, column)
         r, c = coord
        
-        # Controllo di sicurezza per evitare crash se ci sono coordinate strane
+        # Safety check to avoid crashes in case of out-of-bounds coordinates
         if 0 <= r < shape[0] and 0 <= c < shape[1]:
             grid[r, c] = count
    
-    # 3. Crea la cartella se non esiste
+    # Create the directory if it does not exist
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
 
-    # 4. Salva su file
-    # fmt='%d' serve a salvare numeri interi (niente virgole decimali 0.00)
+    # Save to file
+    # fmt='%d' is used to save integers
     np.savetxt(filename, grid, delimiter=",", fmt='%d')
    
-    print(f"Heatmap salvata correttamente in: {filename}")
+    print(f"Heatmap successfully saved in: {filename}")
 
 
 
 def salva_heatmap_immagine(heatmap_dict, filename, track_matrix):
+    """Generates and saves a visual heatmap representation."""
     shape = track_matrix.shape
     
-    # 1. Crea la griglia delle visite
+    # Create the grid of visits
     grid_visits = np.zeros(shape, dtype=float)
     for coord, count in heatmap_dict.items():
         r, c = coord
         if 0 <= r < shape[0] and 0 <= c < shape[1]:
             grid_visits[r, c] = count
 
-    # 2. TRUCCO PER LA SCALA LOGARITMICA:
-    # Sostituisci gli zeri (strada non visitata) con un numero piccolissimo (es. 0.01).
-    # In questo modo LogNorm non "esplode" e non li rende trasparenti.
+    # Replace zeros (unvisited road) with a very small number (e.g., 0.01).
+    # This prevents LogNorm from crashing and rendering them transparent.
     grid_visits[grid_visits == 0] = 0.01
 
-    # 3. Crea la Maschera per i muri (True = Muro)
+    # Create the Mask for the walls (True = Wall)
     wall_mask = (track_matrix == 0.0)
 
-    # 4. Calcola il massimo per la scala
+    # Calculate the maximum value for the scale
     max_val = np.max(grid_visits)
     if max_val < 1: max_val = 1
 
-    # 5. Configura la Colormap Personalizzata
-    # Prendiamo "inferno" e impostiamo il colore per i valori "sotto il minimo" (under) a NERO.
+    # Configure the custom colormap
+    # We take "inferno" and set the color for values "below the minimum" (under) to BLACK.
     my_cmap = copy.copy(plt.get_cmap("inferno"))
     my_cmap.set_under('black') 
 
-    # 6. Setup Grafico
+    # Plot setup
     plt.figure(figsize=(10, 10))
     ax = plt.axes()
-    ax.set_facecolor("lightgray") # I MURI mascherati mostreranno questo colore
+    ax.set_facecolor("lightgray") # Masked WALLS will show this color
 
-    # 7. Disegna
+    # Draw the heatmap
     sns.heatmap(grid_visits, 
                 cmap=my_cmap,       
-                mask=wall_mask,         # I muri diventano trasparenti -> Si vede il Grigio sotto
+                mask=wall_mask,         # Walls become transparent -> The Gray underneath is visible
                 cbar=True,            
                 square=True, 
                 xticklabels=False, 

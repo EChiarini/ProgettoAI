@@ -4,13 +4,16 @@ import pygame
 import os
 import random
 import math
-# Assicurati che crea_matrice_centro sia importata
+# Ensure crea_matrice_centro is imported
 from .track_utils import build_track, crea_matrice_distanze, argwhere, count_numpy_list, crea_matrice_centro
 from .track_costants import *
 import pygame.gfxdraw
 
 class TrackEnv(gym.Env):
-
+    """
+    Custom Gym Environment for the racing track.
+    Handles track loading, agent movement, collision detection, and Pygame rendering.
+    """
     def __init__(self, render_mode=None, is_testing=False): 
         self.metadata = {"render_fps": RENDER_FPS, "render_modes": ["human", "rgb_array"]}
         self.is_testing = is_testing
@@ -19,7 +22,7 @@ class TrackEnv(gym.Env):
         self.distance_matrix = crea_matrice_distanze(get_default_track_path(), "destra")
         self._max_distance = self.distance_matrix.max()
         
-        # Inizializziamo sempre la matrice del centro per evitare errori di attributo mancante
+        # Always initialize the center matrix to avoid missing attribute errors
         self.center_matrix = crea_matrice_centro(self.matrix)
 
         self.render_mode = render_mode
@@ -42,14 +45,14 @@ class TrackEnv(gym.Env):
 
         self._agent_location = np.array(coordinates[self.road_width // 2], dtype=np.int32)
 
-        # LETTURA DELLA COSTANTE (Deve essere "simple", "simple_aggiornato" o "velocity")
+        # CONSTANT READING (Must be "simple", "simple_aggiornato", or "velocity")
         self.movement_mode = MOVEMENT_MODE
 
-        # --- SETUP ACTION & OBSERVATION SPACES ---
+        # Setup action and observation spaces
         if self.movement_mode == "velocity":
             self.action_space = gym.spaces.Discrete(VELOCITY_ACTION_SPACE_SIZE)
             self.speed = np.array([0, 0], dtype=np.int32)
-            # Mappa azione -> (accelerazione_riga, accelerazione_colonna)
+            # Action mapping -> (row_acceleration, col_acceleration)
             self._action_to_acceleration = {
                 0: (-1, -1),
                 1: (-1,  0),
@@ -76,7 +79,7 @@ class TrackEnv(gym.Env):
                 )
             })
         else:
-            # Per "simple" e "simple_aggiornato"
+            # For "simple" and "simple_aggiornato" modes
             self.action_space = gym.spaces.Discrete(4)
             self._action_to_direction = {
                 0: np.array([0, 1]),
@@ -111,6 +114,7 @@ class TrackEnv(gym.Env):
         self._drift_frames = 0 # Counter for drift effect
 
     def _get_obs(self):
+        """Constructs the local observation grid from the agent's perspective."""
         view_padding = self.view_size // 2
         max_x,max_y = self.matrix.shape
 
@@ -141,9 +145,11 @@ class TrackEnv(gym.Env):
         return obs
 
     def _get_info(self):
+        """Returns supplementary environment information."""
         return { "agent_location":self._agent_location }
 
     def reset(self, seed = None, options = None):
+        """Resets the environment to its initial state for a new episode."""
         self.trajectory_heat_map_single_episode = dict()
         super().reset(seed=seed)
 
@@ -158,11 +164,11 @@ class TrackEnv(gym.Env):
 
         coordinates = np.argwhere(self.matrix == TRACK_FINISH_VALUE)
 
-        # Gestione unificata della direzione (dal File 2)
+        # Unified direction management (from File 2 logic)
         try:
             direzione = DEFAULT_DISTANCE_DIRECTION
         except NameError:
-            direzione = "destra" # fallback sicuro se non definito in track_costants
+            direzione = "destra" # Safe fallback if undefined in track_costants
             
         if options and "direzione" in options:
             direzione = options["direzione"]
@@ -184,7 +190,7 @@ class TrackEnv(gym.Env):
         return observation, info
 
     def _check_out_track(self, new_position):
-        """Controlla se il percorso verso new_position esce dalla pista (modalità velocity)."""
+        """Checks if the path towards the new_position goes off-track (velocity mode)."""
         row, col = new_position
         H, W = self.matrix.shape
 
@@ -209,6 +215,7 @@ class TrackEnv(gym.Env):
         return False
 
     def step(self, action):
+        """Executes a single environment step based on the provided action."""
         reward = 0
         size = self.matrix.shape[0]
 
@@ -225,12 +232,12 @@ class TrackEnv(gym.Env):
 
         old_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
         
-        # Salvataggio dati specifici per modalità
+        # Saving mode-specific data
         old_position = self._agent_location.copy()
         if self.movement_mode == "simple_aggiornato":
             old_center_distance = self.center_matrix[self._agent_location[0], self._agent_location[1]]
 
-        # ---- LOGICA DI MOVIMENTO ----
+        # Movement Logic
         if self.movement_mode == "velocity":
             row_acc, col_acc = self._action_to_acceleration[action]
             new_speed_row = self.speed[0] + row_acc
@@ -252,7 +259,7 @@ class TrackEnv(gym.Env):
             self._agent_location = new_position
             self.speed = np.array([new_speed_row, new_speed_col], dtype=np.int32)
             
-        else: # "simple" e "simple_aggiornato"
+        else: # "simple" and "simple_aggiornato" modes
             direction = self._action_to_direction[action]
             self._agent_location = np.clip(self._agent_location + direction, 0, size - 1)
 
@@ -261,7 +268,7 @@ class TrackEnv(gym.Env):
 
         pos_tuple = tuple(self._agent_location)
 
-        # ---- HEATMAP ----
+        # Heatmap generation
         if pos_tuple not in self.trajectory_heat_map:  
             self.trajectory_heat_map[pos_tuple] = 1
         else:
@@ -280,7 +287,7 @@ class TrackEnv(gym.Env):
         reward += STEP_PENALTY
         self.trajectory.append(self._agent_location)
 
-        # ---- CONTROLLO CHECKPOINT E TRAGUARDO ----
+        # Checkpoint and finish line logic
         path_cells = [self._agent_location]
         if self.is_testing and self.movement_mode == "velocity" and 'old_position' in locals():
             path_cells = []
@@ -318,19 +325,19 @@ class TrackEnv(gym.Env):
             terminated = True
             return self._get_obs(), reward, terminated, truncated, self._get_info()
 
-        # ---- CALCOLO REWARD FINALE DISTANZE ----
+        # Final distance reward calculation
         if not terminated:
             new_agent_distance = self.distance_matrix[self._agent_location[0], self._agent_location[1]]
             delta_distance = new_agent_distance - old_agent_distance
 
-            # Wrap-around detection (utile sia per simple che velocity)
+            # Wrap-around detection (useful for both simple and velocity modes)
             if abs(delta_distance) > self._max_distance / 2:
                 if delta_distance > 0:
                     delta_distance = delta_distance - self._max_distance 
                 else:
                     delta_distance = delta_distance + self._max_distance
 
-            # Diversificazione calcolo basata sul movimento
+            # Reward calculation diversification based on movement mode
             if self.movement_mode == "simple_aggiornato":
                 new_center_distance = self.center_matrix[self._agent_location[0], self._agent_location[1]]
                 delta_centro = old_center_distance - new_center_distance
@@ -340,7 +347,7 @@ class TrackEnv(gym.Env):
                 else:
                     reward += (delta_distance * BACKWARD_PENALTY) + (delta_centro * CENTER_WEIGHT)
             else:
-                # Per "simple" classico e "velocity"
+                # For standard "simple" and "velocity" modes
                 if delta_distance > 0:
                     reward += delta_distance
                 else:
@@ -349,12 +356,13 @@ class TrackEnv(gym.Env):
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
     def render(self):
+        """Dispatches the rendering call based on the chosen render mode."""
         if self.render_mode == "rgb_array":
             return self._render_frame()
         elif self.render_mode == "human":
             return self._render_frame()
 
-    # --- DRAWING HELPERS (Realistic) ---
+    # Drawing helpers
 
     def _draw_checkpoint_marker(self, surface, cx, cy, size):
         """Draw a futuristic neon checkpoint marker with pulsing glow."""
@@ -389,13 +397,14 @@ class TrackEnv(gym.Env):
         pygame.gfxdraw.filled_polygon(surface, inner_pts, (255, 255, 255))
 
     def _render_frame(self):
+        """Renders the environment frame by frame using Pygame."""
         if self.window is None and self.render_mode == "human":
             pygame.init()
             pygame.font.init()
             pygame.display.init()
             self.window = pygame.display.set_mode((self.window_size, self.window_size))
             
-            # --- MUSIC INIT ---
+            # music init
             try:
                 pygame.mixer.init()
                 music_path = os.path.join("data", "music", DEFAULT_TRACK_MUSIC)
@@ -420,7 +429,7 @@ class TrackEnv(gym.Env):
 
         canvas_hi = pygame.Surface((self.window_size, self.window_size))
 
-        # --- BACKGROUND GENERATION (Smooth Mask Compositing) ---
+        # Background generation with smooth gradients and neon grid
         if self.background_surface is None:
             import scipy.ndimage
             
@@ -437,7 +446,7 @@ class TrackEnv(gym.Env):
             # Base color arrays (H, W, 3)
             H, W = int(self.window_size), int(self.window_size)
             
-            # --- Smooth radial purple gradient background ---
+            # Smooth radial purple gradient background
             y_coords_bg, x_coords_bg = np.indices((H, W))
             center_y, center_x = H / 2, W / 2
             dist_from_center = np.sqrt((x_coords_bg - center_x)**2 + (y_coords_bg - center_y)**2)
@@ -449,7 +458,7 @@ class TrackEnv(gym.Env):
             color_edge = np.array(COLOR_GRASS_DARK, dtype=np.float32)
             rgb_map = color_center * (1 - gradient_t) + color_edge * gradient_t
 
-            # --- Neon fuchsia grid on background only ---
+            # Neon fuchsia grid on background only
             grid_spacing = 40  # pixels between grid lines
             grid_thickness = 1  # 1px thin lines
             grid_on_x = (x_coords_bg % grid_spacing) < grid_thickness
@@ -463,30 +472,30 @@ class TrackEnv(gym.Env):
             # Blend grid with a soft glow effect (semi-transparent)
             rgb_map = rgb_map * (1 - grid_mask * 0.45) + neon_fuchsia * (grid_mask * 0.45)
 
-            # 2. Darker halo near road (subtle transition)
+            # Darker halo near road (subtle transition)
             alpha_mowed = np.clip(1.0 - np.abs(smooth_road - 0.25) / 0.15, 0, 1)
             alpha_mowed = alpha_mowed[..., np.newaxis]
             rgb_map = rgb_map * (1 - alpha_mowed) + np.array(COLOR_GRASS_DARK) * alpha_mowed
 
-            # 3. Road blend (clean flat asphalt, subtle noise only)
+            # Road blend (clean flat asphalt, subtle noise only)
             alpha_road = np.clip((smooth_road - 0.48) / 0.04, 0, 1)
             alpha_road = alpha_road[..., np.newaxis]
             noise_hf = (np.random.rand(H, W, 3).astype(np.float32) - 0.5) * 8.0
             road_texture = np.array(COLOR_ROAD) + noise_hf
             rgb_map = rgb_map * (1 - alpha_road) + road_texture * alpha_road
 
-            # 4. Curb blend (solid uniform neon color)
+            # Curb blend (solid uniform neon color)
             alpha_curb = np.clip((smooth_curb - 0.3) / 0.1, 0, 1)
             alpha_curb = alpha_curb[..., np.newaxis]
             rgb_map = rgb_map * (1 - alpha_curb) + np.array(COLOR_KERB) * alpha_curb
 
-            # 4b. Neon glow edge line (road boundary)
+            # Neon glow edge line (road boundary)
             # Thin bright neon line right at the road-to-curb transition
             alpha_edge = np.clip(1.0 - np.abs(smooth_road - 0.45) / 0.03, 0, 1)
             alpha_edge = alpha_edge[..., np.newaxis]
             rgb_map = rgb_map * (1 - alpha_edge) + np.array(COLOR_ROAD_LINE) * alpha_edge
 
-            # 5. Finish blend
+            # Finish blend
             alpha_finish = np.clip((smooth_finish - 0.3) / 0.1, 0, 1)
             alpha_finish = alpha_finish[..., np.newaxis]
             y_coords, x_coords = np.indices((H, W))
@@ -502,7 +511,7 @@ class TrackEnv(gym.Env):
         # Blit cached background
         canvas_hi.blit(self.background_surface, (0, 0))
 
-        # --- CHECKPOINT MARKERS (diamond, only uncollected) ---
+        # Checkpoints rendering
         for key, value in self._checkpoints.items():
             try:
                 cp_idx = int(key.split("_")[1])
@@ -520,7 +529,7 @@ class TrackEnv(gym.Env):
                 self._draw_checkpoint_marker(canvas_hi, cx, cy, pix_square_size * 0.6)
 
 
-        # --- KART ---
+        # Kart
         cx = (self._agent_location[1] + 0.5) * cell_w
         cy = (self._agent_location[0] + 0.5) * cell_h
         
@@ -530,7 +539,6 @@ class TrackEnv(gym.Env):
         if self._last_action == 2: angle = 180 
         if self._last_action == 3: angle = 270 
 
-        # Shadow (SSAA: draw at hi-res, rotate, smoothscale down)
         # Shadow (SSAA: draw at hi-res, rotate, smoothscale down)
         k = RENDER_SCALE
         shadow_size = int(pix_square_size * 1.4 * k)
@@ -615,7 +623,6 @@ class TrackEnv(gym.Env):
         canvas_hi.blit(rotated_kart, rect_rotated)
 
 
-        # --- HUD (Futuristic Neon) ---
         if self.render_mode == "human":
             # Load Orbitron futuristic font
             try:

@@ -5,39 +5,39 @@ from main_costants import SAVE_CHECKPOINT_EVERY
 
 def save_training_plot(scores, filename="training_plot.png", window_size=SAVE_CHECKPOINT_EVERY):
     """
-    Crea e salva un grafico dell'andamento dei reward.
+    Creates and saves a plot of the reward progression.
     
     Args:
-        scores (list): La lista completa dei punteggi per ogni episodio.
-        filename (str): Il percorso dove salvare l'immagine.
-        window_size (int): L'ampiezza della finestra per la media mobile.
+        scores (list): The complete list of scores for each episode.
+        filename (str): The path where the image will be saved.
+        window_size (int): The window size for the moving average.
     """
-    # Imposta la dimensione della figura
+    # Set the figure size
     plt.figure(figsize=(10, 6))
     
     
-    # 2. Calcolo e Plot della Media Mobile (Trend)
-    # Se abbiamo abbastanza dati per calcolare la media
+    # Calculation and plotting of moving average (Trend)
+    # If we have enough data to calculate the moving average
     if len(scores) >= window_size:
-        # Calcola la media mobile usando la convoluzione (molto veloce)
+        # Calculate moving average using convolution for efficiency
         moving_avg = np.convolve(scores, np.ones(window_size)/window_size, mode='valid')
         
-        # L'asse X per la media mobile deve essere spostato per allinearsi
-        # (parte dall'episodio 'window_size')
+        # The X axis for the moving average must be shifted to align properly
+        # (it starts from the 'window_size' episode)
         x_axis = np.arange(window_size - 1, len(scores))
         
         plt.plot(x_axis, moving_avg, color='blue', linewidth=2, label=f'Media Mobile ({window_size} ep)')
 
-    # Etichette e Titolo
+    # Labels and Title
     plt.title('Andamento Addestramento DQN')
     plt.xlabel('Episodio')
     plt.ylabel('Reward Totale (Score)')
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
     
-    # Salva il file
+    # Save the file
     plt.savefig(filename)
     print(f"Grafico salvato in: {filename}")
     
-    # Chiudi la figura per liberare memoria
+    # Close the figure to free up memory
     plt.close()
