@@ -16,6 +16,7 @@ dependencies = [
     "torch",
     "torchvision",
     "torchaudio",
+    "scipy>=1.17.1",
 ]
 
 [dependency-groups]
@@ -25,9 +26,9 @@ dev = [
 ]
 
 [[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cu130"
-
-[[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple"
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu130"

@@ -8,6 +8,7 @@ import math
 from .track_utils import build_track, crea_matrice_distanze, argwhere, count_numpy_list, crea_matrice_centro
 from .track_costants import *
 import pygame.gfxdraw
+import scipy.ndimage
 
 class TrackEnv(gym.Env):
     """
@@ -431,7 +432,6 @@ class TrackEnv(gym.Env):
 
         # Background generation with smooth gradients and neon grid
         if self.background_surface is None:
-            import scipy.ndimage
             
             # Create discrete masks for each surface type
             mask_road = (self.matrix == TRACK_ROAD_VALUE).astype(np.float32)
