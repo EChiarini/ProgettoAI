@@ -534,10 +534,18 @@ class TrackEnv(gym.Env):
         cy = (self._agent_location[0] + 0.5) * cell_h
         
         angle = 0
-        if self._last_action == 0: angle = 0   
-        if self._last_action == 1: angle = 90  
-        if self._last_action == 2: angle = 180 
-        if self._last_action == 3: angle = 270 
+        if self.movement_mode == "velocity":
+            # Derive angle from the speed vector so the car faces its direction of travel
+            sr, sc = self.speed[0], self.speed[1]
+            if sr != 0 or sc != 0:
+                # atan2 gives angle from +X axis; our grid: col = X, row = Y (inverted)
+                # speed = (row_delta, col_delta), positive row = down on screen
+                angle = -math.degrees(math.atan2(sr, sc))
+        else:
+            if self._last_action == 0: angle = 0   
+            if self._last_action == 1: angle = 90  
+            if self._last_action == 2: angle = 180 
+            if self._last_action == 3: angle = 270 
 
         # Shadow (SSAA: draw at hi-res, rotate, smoothscale down)
         k = RENDER_SCALE
@@ -563,14 +571,22 @@ class TrackEnv(gym.Env):
              offset_base_x = 0
              offset_base_y = 0
              
-             if self._last_action == 0:
-                 offset_base_x = -pix_square_size * 0.4
-             elif self._last_action == 2:
-                 offset_base_x = pix_square_size * 0.4
-             elif self._last_action == 1:
-                 offset_base_y = pix_square_size * 0.4
-             elif self._last_action == 3:
-                 offset_base_y = -pix_square_size * 0.4
+             if self.movement_mode == "velocity":
+                 # Place smoke behind the car based on speed direction
+                 sr, sc = self.speed[0], self.speed[1]
+                 mag = math.sqrt(sr * sr + sc * sc)
+                 if mag > 0:
+                     offset_base_x = -sc / mag * pix_square_size * 0.4
+                     offset_base_y = -sr / mag * pix_square_size * 0.4
+             else:
+                 if self._last_action == 0:
+                     offset_base_x = -pix_square_size * 0.4
+                 elif self._last_action == 2:
+                     offset_base_x = pix_square_size * 0.4
+                 elif self._last_action == 1:
+                     offset_base_y = pix_square_size * 0.4
+                 elif self._last_action == 3:
+                     offset_base_y = -pix_square_size * 0.4
 
              for _ in range(3): 
                  rnd_x = random.randint(-4, 4)
